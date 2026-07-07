@@ -34,6 +34,7 @@ var hasConfiguredKestrelEndpoints = config.GetSection("Kestrel:Endpoints").Exist
 
 if (string.IsNullOrWhiteSpace(configuredUrls) && !hasConfiguredKestrelEndpoints)
 {
+    // Keep the legacy device port when the host has not explicitly configured bindings.
     builder.WebHost.UseUrls("http://0.0.0.0:5000");
 }
 
@@ -148,6 +149,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// IClock devices are commonly configured for plain HTTP and may not follow HTTPS redirects.
 app.UseWhen(
     context => !context.Request.Path.StartsWithSegments("/iclock", StringComparison.OrdinalIgnoreCase),
     branch => branch.UseHttpsRedirection());
