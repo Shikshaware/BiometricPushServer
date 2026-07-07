@@ -12,6 +12,7 @@ namespace BiometricPushServer.Data.EntityConfigurations
             builder.Property(x => x.SerialNumber).IsRequired().HasMaxLength(100);
             builder.Property(x => x.DeviceName).HasMaxLength(200);
             builder.Property(x => x.IpAddress).HasMaxLength(50);
+            builder.Property(x => x.ConfiguredServerAddress).HasMaxLength(100);
             builder.Property(x => x.FirmwareVersion).HasMaxLength(100);
             builder.Property(x => x.DeviceModel).HasMaxLength(100);
             builder.Property(x => x.Manufacturer).HasMaxLength(100);

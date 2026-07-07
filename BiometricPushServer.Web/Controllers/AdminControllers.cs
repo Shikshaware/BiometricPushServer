@@ -34,9 +34,15 @@ namespace BiometricPushServer.Web.Controllers
             _commandService = commandService;
         }
 
-        public async Task<IActionResult> Index([FromQuery] int? clientId)
+        public async Task<IActionResult> Index(
+            [FromQuery] int? clientId,
+            [FromQuery] string? configuredServerAddress,
+            [FromQuery] int? configuredServerPort)
         {
-            var devices = await _deviceService.GetAllDevicesAsync(clientId);
+            var devices = await _deviceService.GetAllDevicesAsync(
+                clientId,
+                configuredServerAddress,
+                configuredServerPort);
             return View(devices);
         }
 

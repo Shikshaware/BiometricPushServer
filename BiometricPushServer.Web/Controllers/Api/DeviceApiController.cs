@@ -22,9 +22,15 @@ namespace BiometricPushServer.Web.Controllers.Api
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] int? clientId)
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int? clientId,
+            [FromQuery] string? configuredServerAddress,
+            [FromQuery] int? configuredServerPort)
         {
-            var devices = await _deviceService.GetAllDevicesAsync(clientId);
+            var devices = await _deviceService.GetAllDevicesAsync(
+                clientId,
+                configuredServerAddress,
+                configuredServerPort);
             return Ok(ApiResponse<object>.Ok(devices));
         }
 

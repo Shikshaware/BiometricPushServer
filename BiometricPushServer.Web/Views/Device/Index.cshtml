@@ -8,13 +8,34 @@
     <h3><i class="bi bi-cpu"></i> Devices</h3>
 </div>
 
+<form method="get" class="card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label mb-1">Configured Server Address</label>
+                <input type="text" name="configuredServerAddress" class="form-control"
+                       value="@Context.Request.Query["configuredServerAddress"]" placeholder="e.g. 223.25.16.4" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label mb-1">Configured Port</label>
+                <input type="number" name="configuredServerPort" class="form-control"
+                       value="@Context.Request.Query["configuredServerPort"]" placeholder="e.g. 85" />
+            </div>
+            <div class="col-md-5 d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Filter</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </div>
+    </div>
+</form>
+
 <div class="card">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
             <thead class="table-dark">
                 <tr>
                     <th>SN</th><th>Name</th><th>IP</th><th>Location</th>
-                    <th>Firmware</th><th>Status</th><th>Approved</th>
+                    <th>Configured Server</th><th>Firmware</th><th>Status</th><th>Approved</th>
                     <th>Last Heartbeat</th><th>Actions</th>
                 </tr>
             </thead>
@@ -26,6 +47,16 @@
                         <td>@d.DeviceName</td>
                         <td>@d.IpAddress</td>
                         <td>@d.Location</td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(d.ConfiguredServerAddress))
+                            {
+                                <code>@d.ConfiguredServerAddress:@(d.ConfiguredServerPort?.ToString() ?? "-")</code>
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        </td>
                         <td>@d.FirmwareVersion</td>
                         <td>
                             @if (d.IsOnline)

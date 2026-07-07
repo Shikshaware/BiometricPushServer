@@ -19,9 +19,14 @@ namespace BiometricPushServer.Service
         public async Task<BioDevice?> GetBySerialNumberAsync(string sn) =>
             await _uow.Devices.GetBySerialNumberAsync(sn);
 
-        public async Task<BioDevice?> RegisterOrUpdateAsync(DeviceRegistrationDto dto, string ipAddress)
+        public async Task<BioDevice?> RegisterOrUpdateAsync(
+            DeviceRegistrationDto dto,
+            string ipAddress,
+            string? configuredServerAddress = null,
+            int? configuredServerPort = null)
         {
             var device = await _uow.Devices.GetBySerialNumberAsync(dto.SerialNumber);
+            var normalizedConfiguredServerAddress = configuredServerAddress?.Trim();
 
             if (device == null)
             {
@@ -30,6 +35,8 @@ namespace BiometricPushServer.Service
                     SerialNumber = dto.SerialNumber,
                     DeviceName = dto.DeviceName,
                     IpAddress = ipAddress,
+                    ConfiguredServerAddress = normalizedConfiguredServerAddress ?? string.Empty,
+                    ConfiguredServerPort = configuredServerPort,
                     Port = dto.Port,
                     FirmwareVersion = dto.FirmwareVersion,
                     DeviceModel = dto.DeviceModel,
@@ -43,6 +50,10 @@ namespace BiometricPushServer.Service
             else
             {
                 device.IpAddress = ipAddress;
+                if (!string.IsNullOrWhiteSpace(normalizedConfiguredServerAddress))
+                    device.ConfiguredServerAddress = normalizedConfiguredServerAddress;
+                if (configuredServerPort.HasValue)
+                    device.ConfiguredServerPort = configuredServerPort;
                 device.FirmwareVersion = dto.FirmwareVersion;
                 device.LastConnectedOn = DateTime.UtcNow;
                 _uow.Devices.Update(device);
@@ -52,9 +63,17 @@ namespace BiometricPushServer.Service
             return device;
         }
 
-        public async Task<IEnumerable<DeviceDto>> GetAllDevicesAsync(int? clientId = null)
+        public async Task<IEnumerable<DeviceDto>> GetAllDevicesAsync(
+            int? clientId = null,
+            string? configuredServerAddress = null,
+            int? configuredServerPort = null)
         {
-            var devices = await _uow.Devices.FindAsync(d => clientId == null || d.ClientId == clientId);
+            var normalizedConfiguredServerAddress = configuredServerAddress?.Trim();
+            var hasConfiguredServerAddress = !string.IsNullOrWhiteSpace(normalizedConfiguredServerAddress);
+            var devices = await _uow.Devices.FindAsync(d =>
+                (clientId == null || d.ClientId == clientId) &&
+                (!hasConfiguredServerAddress || d.ConfiguredServerAddress == normalizedConfiguredServerAddress) &&
+                (!configuredServerPort.HasValue || d.ConfiguredServerPort == configuredServerPort));
             var onlineThreshold = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes);
             return devices.Select(d => MapToDto(d, onlineThreshold));
         }
@@ -87,13 +106,23 @@ namespace BiometricPushServer.Service
             return true;
         }
 
-        public async Task UpdateHeartbeatAsync(string sn, string ipAddress, string rawQuery)
+        public async Task UpdateHeartbeatAsync(
+            string sn,
+            string ipAddress,
+            string rawQuery,
+            string? configuredServerAddress = null,
+            int? configuredServerPort = null)
         {
             var device = await _uow.Devices.GetBySerialNumberAsync(sn);
+            var normalizedConfiguredServerAddress = configuredServerAddress?.Trim();
             if (device != null)
             {
                 device.LastHeartbeatOn = DateTime.UtcNow;
                 device.IpAddress = ipAddress;
+                if (!string.IsNullOrWhiteSpace(normalizedConfiguredServerAddress))
+                    device.ConfiguredServerAddress = normalizedConfiguredServerAddress;
+                if (configuredServerPort.HasValue)
+                    device.ConfiguredServerPort = configuredServerPort;
                 _uow.Devices.Update(device);
             }
 
@@ -158,6 +187,8 @@ namespace BiometricPushServer.Service
             SerialNumber = d.SerialNumber,
             DeviceName = d.DeviceName,
             IpAddress = d.IpAddress,
+            ConfiguredServerAddress = d.ConfiguredServerAddress,
+            ConfiguredServerPort = d.ConfiguredServerPort,
             FirmwareVersion = d.FirmwareVersion,
             Location = d.Location,
             IsApproved = d.IsApproved,

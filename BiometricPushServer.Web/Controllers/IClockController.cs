@@ -55,6 +55,7 @@ namespace BiometricPushServer.Web.Controllers
                 return BadRequest();
 
             var ip = GetClientIp();
+            var (configuredServerAddress, configuredServerPort) = GetConfiguredServerEndpoint();
             _logger.LogInformation("IClock CDATA GET from SN={SN} IP={Ip}",
                 SanitizeForLog(SN), SanitizeForLog(ip));
 
@@ -63,9 +64,14 @@ namespace BiometricPushServer.Web.Controllers
                 SerialNumber = SN,
                 DeviceName = SN,
                 IpAddress = ip
-            }, ip);
+            }, ip, configuredServerAddress, configuredServerPort);
 
-            await _deviceService.UpdateHeartbeatAsync(SN, ip, Request.QueryString.Value ?? string.Empty);
+            await _deviceService.UpdateHeartbeatAsync(
+                SN,
+                ip,
+                Request.QueryString.Value ?? string.Empty,
+                configuredServerAddress,
+                configuredServerPort);
 
             // Standard IClock response: UTC timestamp + server info
             var now = DateTime.UtcNow;
@@ -93,6 +99,7 @@ namespace BiometricPushServer.Web.Controllers
                 return BadRequest();
 
             var ip = GetClientIp();
+            var (configuredServerAddress, configuredServerPort) = GetConfiguredServerEndpoint();
             var body = await ReadBodyAsync();
 
             _logger.LogDebug("IClock CDATA POST SN={SN} Table={Table} Body={Body}",
@@ -106,10 +113,15 @@ namespace BiometricPushServer.Web.Controllers
                 {
                     SerialNumber = SN,
                     DeviceName = SN
-                }, ip);
+                }, ip, configuredServerAddress, configuredServerPort);
             }
 
-            await _deviceService.UpdateHeartbeatAsync(SN, ip, body);
+            await _deviceService.UpdateHeartbeatAsync(
+                SN,
+                ip,
+                body,
+                configuredServerAddress,
+                configuredServerPort);
 
             if (string.Equals(table, "ATTLOG", StringComparison.OrdinalIgnoreCase))
             {
@@ -142,7 +154,13 @@ namespace BiometricPushServer.Web.Controllers
                 return Content(string.Empty, "text/plain", Encoding.UTF8);
 
             var ip = GetClientIp();
-            await _deviceService.UpdateHeartbeatAsync(SN, ip, string.Empty);
+            var (configuredServerAddress, configuredServerPort) = GetConfiguredServerEndpoint();
+            await _deviceService.UpdateHeartbeatAsync(
+                SN,
+                ip,
+                string.Empty,
+                configuredServerAddress,
+                configuredServerPort);
 
             var pending = await _commandService.GetPendingAsync(SN);
             var pendingList = pending.ToList();
@@ -202,6 +220,14 @@ namespace BiometricPushServer.Web.Controllers
 
         private string GetClientIp() =>
             HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        private (string? address, int? port) GetConfiguredServerEndpoint()
+        {
+            if (!Request.Host.HasValue || string.IsNullOrWhiteSpace(Request.Host.Host))
+                return (null, null);
+
+            return (Request.Host.Host, Request.Host.Port);
+        }
 
         // Pre-compiled Regex for log-injection prevention (reused across calls)
         private static readonly System.Text.RegularExpressions.Regex _logControlCharsRegex =

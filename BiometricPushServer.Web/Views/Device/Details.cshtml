@@ -21,6 +21,17 @@
                     <dd class="col-sm-7">@Model.DeviceName</dd>
                     <dt class="col-sm-5">IP Address</dt>
                     <dd class="col-sm-7">@Model.IpAddress</dd>
+                    <dt class="col-sm-5">Configured Server</dt>
+                    <dd class="col-sm-7">
+                        @if (!string.IsNullOrWhiteSpace(Model.ConfiguredServerAddress))
+                        {
+                            <code>@Model.ConfiguredServerAddress:@(Model.ConfiguredServerPort?.ToString() ?? "-")</code>
+                        }
+                        else
+                        {
+                            <span>-</span>
+                        }
+                    </dd>
                     <dt class="col-sm-5">Location</dt>
                     <dd class="col-sm-7">@(string.IsNullOrEmpty(Model.Location) ? "-" : Model.Location)</dd>
                     <dt class="col-sm-5">Firmware</dt>

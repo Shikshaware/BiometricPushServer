@@ -13,6 +13,8 @@ namespace BiometricPushServer.Domain
         public string DeviceName { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
         public string IpAddress { get; set; } = string.Empty;
+        public string ConfiguredServerAddress { get; set; } = string.Empty;
+        public int? ConfiguredServerPort { get; set; }
         public int? Port { get; set; }
         public string FirmwareVersion { get; set; } = string.Empty;
         public string DeviceModel { get; set; } = string.Empty;
