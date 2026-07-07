@@ -250,7 +250,6 @@ namespace BiometricPushServer.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("ConfiguredServerAddress")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BiometricPushServer.Data.Migrations
 {
     [DbContext(typeof(BiometricDbContext))]
-    [Migration("20260707225852_AddConfiguredServerEndpointToDevice")]
+    [Migration("20260707230138_AddConfiguredServerEndpointToDevice")]
     partial class AddConfiguredServerEndpointToDevice
     {
         /// <inheritdoc />
@@ -253,7 +253,6 @@ namespace BiometricPushServer.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("ConfiguredServerAddress")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 

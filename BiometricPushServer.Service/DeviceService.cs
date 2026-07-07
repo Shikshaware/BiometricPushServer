@@ -35,7 +35,7 @@ namespace BiometricPushServer.Service
                     SerialNumber = dto.SerialNumber,
                     DeviceName = dto.DeviceName,
                     IpAddress = ipAddress,
-                    ConfiguredServerAddress = normalizedConfiguredServerAddress ?? string.Empty,
+                    ConfiguredServerAddress = normalizedConfiguredServerAddress,
                     ConfiguredServerPort = configuredServerPort,
                     Port = dto.Port,
                     FirmwareVersion = dto.FirmwareVersion,

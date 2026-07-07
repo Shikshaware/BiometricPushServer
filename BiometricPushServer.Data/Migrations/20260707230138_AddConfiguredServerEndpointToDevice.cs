@@ -15,8 +15,7 @@ namespace BiometricPushServer.Data.Migrations
                 table: "BioDevices",
                 type: "nvarchar(100)",
                 maxLength: 100,
-                nullable: false,
-                defaultValue: "");
+                nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "ConfiguredServerPort",
