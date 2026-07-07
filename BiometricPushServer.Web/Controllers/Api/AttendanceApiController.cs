@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Service.Interfaces;
@@ -23,10 +25,12 @@ namespace BiometricPushServer.Web.Controllers.Api
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] int? clientId,
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 50)
         {
-            var result = await _attendanceService.GetAttendanceAsync(clientId, pageNumber, pageSize);
+            var result = await _attendanceService.GetAttendanceAsync(clientId, pageNumber, pageSize, from, to);
             return Ok(ApiResponse<object>.Ok(result));
         }
 
@@ -49,6 +53,56 @@ namespace BiometricPushServer.Web.Controllers.Api
             return Ok(ApiResponse<object>.Ok(logs));
         }
 
+        [HttpGet("user/{userCode}")]
+        public async Task<IActionResult> GetByUser(
+            string userCode,
+            [FromQuery] int? clientId,
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to)
+        {
+            var fromDate = from ?? DateTime.Today.AddDays(-30);
+            var toDate = to ?? DateTime.Today.AddDays(1).AddTicks(-1);
+            var logs = await _attendanceService.GetByUserAsync(userCode, fromDate, toDate, clientId);
+            return Ok(ApiResponse<object>.Ok(logs));
+        }
+
+        /// <summary>
+        /// Export attendance records as CSV.
+        /// GET /api/attendance/export?clientId=&from=&to=
+        /// Large exports should be scoped with from/to date filters (max 50,000 rows returned).
+        /// </summary>
+        [HttpGet("export")]
+        public async Task<IActionResult> Export(
+            [FromQuery] int? clientId,
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to)
+        {
+            const int exportLimit = 50_000;
+            var result = await _attendanceService.GetAttendanceAsync(
+                clientId, 1, exportLimit, from, to);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Id,DeviceSN,UserCode,UserName,PunchTime,AttendanceState,VerifyMode,IsDuplicate,CreatedOn");
+
+            foreach (var log in result.Items)
+            {
+                sb.AppendLine(string.Join(",",
+                    log.Id,
+                    Escape(log.DeviceSN),
+                    Escape(log.UserCode),
+                    Escape(log.UserName),
+                    log.PunchTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                    log.AttendanceState,
+                    log.VerifyMode,
+                    log.IsDuplicate,
+                    log.CreatedOn.ToString("yyyy-MM-dd HH:mm:ss")));
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            var fileName = $"attendance_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
+            return File(bytes, "text/csv", fileName);
+        }
+
         /// <summary>
         /// Allow devices to push attendance directly via REST API (alternative to IClock).
         /// POST /api/attendance/push
@@ -66,6 +120,14 @@ namespace BiometricPushServer.Web.Controllers.Api
                 dto.DeviceSN, dto.Records, clientId);
 
             return Ok(ApiResponse<object>.Ok(new { saved, duplicates }));
+        }
+
+        private static string Escape(string? value)
+        {
+            if (value == null) return string.Empty;
+            if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+                return $"\"{value.Replace("\"", "\"\"")}\"";
+            return value;
         }
     }
 }

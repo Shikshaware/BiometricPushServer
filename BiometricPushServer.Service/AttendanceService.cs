@@ -65,10 +65,13 @@ namespace BiometricPushServer.Service
         }
 
         public async Task<PagedResult<AttendanceLogDto>> GetAttendanceAsync(
-            int? clientId, int pageNumber, int pageSize)
+            int? clientId, int pageNumber, int pageSize,
+            DateTime? from = null, DateTime? to = null)
         {
             var query = _uow.Attendance.Query();
             if (clientId.HasValue) query = query.Where(a => a.ClientId == clientId);
+            if (from.HasValue) query = query.Where(a => a.PunchTime >= from.Value);
+            if (to.HasValue) query = query.Where(a => a.PunchTime <= to.Value);
 
             var total = query.Count();
             var items = query
@@ -112,5 +115,12 @@ namespace BiometricPushServer.Service
             IsDuplicate = a.IsDuplicate,
             CreatedOn = a.CreatedOn
         };
+
+        public async Task<IEnumerable<AttendanceLogDto>> GetByUserAsync(
+            string userCode, DateTime from, DateTime to, int? clientId = null)
+        {
+            var logs = await _uow.Attendance.GetByUserAsync(userCode, from, to, clientId);
+            return logs.Select(MapToDto);
+        }
     }
 }
