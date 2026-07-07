@@ -1,0 +1,122 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Device Details";
+}
+@model BiometricPushServer.Common.DTOs.DeviceDto
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-cpu"></i> Device: <code>@Model.SerialNumber</code></h3>
+    <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><strong>Device Info</strong></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Serial Number</dt>
+                    <dd class="col-sm-7"><code>@Model.SerialNumber</code></dd>
+                    <dt class="col-sm-5">Name</dt>
+                    <dd class="col-sm-7">@Model.DeviceName</dd>
+                    <dt class="col-sm-5">IP Address</dt>
+                    <dd class="col-sm-7">@Model.IpAddress</dd>
+                    <dt class="col-sm-5">Location</dt>
+                    <dd class="col-sm-7">@(string.IsNullOrEmpty(Model.Location) ? "-" : Model.Location)</dd>
+                    <dt class="col-sm-5">Firmware</dt>
+                    <dd class="col-sm-7">@(string.IsNullOrEmpty(Model.FirmwareVersion) ? "-" : Model.FirmwareVersion)</dd>
+                    <dt class="col-sm-5">Status</dt>
+                    <dd class="col-sm-7">
+                        @if (Model.IsOnline)
+                        {
+                            <span class="badge bg-success">Online</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Offline</span>
+                        }
+                    </dd>
+                    <dt class="col-sm-5">Approved</dt>
+                    <dd class="col-sm-7">
+                        @if (Model.IsApproved)
+                        {
+                            <span class="badge bg-success">Yes</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        }
+                    </dd>
+                    <dt class="col-sm-5">Active</dt>
+                    <dd class="col-sm-7">@(Model.IsActive ? "Yes" : "No")</dd>
+                    <dt class="col-sm-5">Last Heartbeat</dt>
+                    <dd class="col-sm-7">@(Model.LastHeartbeatOn?.ToString("dd-MMM-yyyy HH:mm:ss") ?? "-")</dd>
+                    <dt class="col-sm-5">Last Connected</dt>
+                    <dd class="col-sm-7">@(Model.LastConnectedOn?.ToString("dd-MMM-yyyy HH:mm:ss") ?? "-")</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><strong>Device Actions</strong></div>
+            <div class="card-body d-flex flex-column gap-2">
+                @if (!Model.IsApproved)
+                {
+                    <form method="post" asp-action="Approve" asp-route-id="@Model.Id">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-check-circle"></i> Approve Device
+                        </button>
+                    </form>
+                }
+
+                <form method="post" asp-action="Lock" asp-route-id="@Model.Id">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-warning w-100">
+                        <i class="bi bi-lock"></i> Lock Device
+                    </button>
+                </form>
+
+                <form method="post" asp-action="Unlock" asp-route-id="@Model.Id">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-success w-100">
+                        <i class="bi bi-unlock"></i> Unlock Device
+                    </button>
+                </form>
+
+                <form method="post" asp-action="Restart" asp-route-id="@Model.Id">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-primary w-100"
+                            onclick="return confirm('Restart device @Html.Raw(Model.SerialNumber)?')">
+                        <i class="bi bi-arrow-clockwise"></i> Restart Device
+                    </button>
+                </form>
+
+                <form method="post" asp-action="SyncTime" asp-route-id="@Model.Id">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-info w-100">
+                        <i class="bi bi-clock"></i> Sync Device Time
+                    </button>
+                </form>
+
+                <form method="post" asp-action="ClearAttendance" asp-route-id="@Model.Id">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-danger w-100"
+                            onclick="return confirm('Clear ALL attendance logs on device @Html.Raw(Model.SerialNumber)?')">
+                        <i class="bi bi-trash"></i> Clear Attendance Logs
+                    </button>
+                </form>
+
+                <form method="post" asp-action="ClearUsers" asp-route-id="@Model.Id">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger w-100"
+                            onclick="return confirm('Clear ALL user data on device @Html.Raw(Model.SerialNumber)? This cannot be undone.')">
+                        <i class="bi bi-people-fill"></i> Clear All Users
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
