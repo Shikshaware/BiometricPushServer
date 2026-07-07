@@ -15,14 +15,16 @@ namespace BiometricPushServer.Service.Interfaces
         Task UpdateHeartbeatAsync(string sn, string ipAddress, string rawQuery);
         Task MarkOfflineDevicesAsync();
         Task<DeviceDto?> GetDeviceDtoAsync(int deviceId);
+        Task<DeviceDto?> UpdateDeviceAsync(int deviceId, DeviceUpdateDto dto);
     }
 
     public interface IAttendanceService
     {
         Task<(int saved, int duplicates)> ProcessPushAsync(string deviceSN, IEnumerable<AttendanceRecordDto> records, int? clientId);
-        Task<PagedResult<AttendanceLogDto>> GetAttendanceAsync(int? clientId, int pageNumber, int pageSize);
+        Task<PagedResult<AttendanceLogDto>> GetAttendanceAsync(int? clientId, int pageNumber, int pageSize, System.DateTime? from = null, System.DateTime? to = null);
         Task<IEnumerable<AttendanceLogDto>> GetTodayAsync(int? clientId = null);
         Task<IEnumerable<AttendanceLogDto>> GetByDeviceAsync(string deviceSN, System.DateTime from, System.DateTime to);
+        Task<IEnumerable<AttendanceLogDto>> GetByUserAsync(string userCode, System.DateTime from, System.DateTime to, int? clientId = null);
     }
 
     public interface ICommandService
@@ -46,5 +48,23 @@ namespace BiometricPushServer.Service.Interfaces
     public interface IDashboardService
     {
         Task<DashboardStatsDto> GetStatsAsync(int? clientId = null);
+    }
+
+    public interface IDepartmentService
+    {
+        Task<IEnumerable<DepartmentDto>> GetAllAsync(int? clientId = null);
+        Task<DepartmentDto?> GetByIdAsync(int id);
+        Task<DepartmentDto> CreateAsync(DepartmentDto dto);
+        Task<DepartmentDto?> UpdateAsync(int id, DepartmentDto dto);
+        Task<bool> DeleteAsync(int id);
+    }
+
+    public interface ILocationService
+    {
+        Task<IEnumerable<LocationDto>> GetAllAsync(int? clientId = null);
+        Task<LocationDto?> GetByIdAsync(int id);
+        Task<LocationDto> CreateAsync(LocationDto dto);
+        Task<LocationDto?> UpdateAsync(int id, LocationDto dto);
+        Task<bool> DeleteAsync(int id);
     }
 }

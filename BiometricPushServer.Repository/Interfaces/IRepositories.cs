@@ -16,7 +16,7 @@ namespace BiometricPushServer.Repository.Interfaces
     {
         Task<IEnumerable<BioAttendanceLog>> GetTodayLogsAsync(int? clientId = null);
         Task<IEnumerable<BioAttendanceLog>> GetByDeviceAsync(string deviceSN, DateTime from, DateTime to);
-        Task<IEnumerable<BioAttendanceLog>> GetByUserAsync(string userCode, DateTime from, DateTime to);
+        Task<IEnumerable<BioAttendanceLog>> GetByUserAsync(string userCode, DateTime from, DateTime to, int? clientId = null);
         Task<bool> IsDuplicateAsync(string deviceSN, string userCode, DateTime punchTime, int windowSeconds);
     }
 

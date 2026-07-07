@@ -50,11 +50,15 @@ namespace BiometricPushServer.Repository
                 .OrderBy(a => a.PunchTime)
                 .ToListAsync();
 
-        public async Task<IEnumerable<BioAttendanceLog>> GetByUserAsync(string userCode, DateTime from, DateTime to) =>
-            await _dbSet
-                .Where(a => a.UserCode == userCode && a.PunchTime >= from && a.PunchTime <= to)
-                .OrderBy(a => a.PunchTime)
-                .ToListAsync();
+        public async Task<IEnumerable<BioAttendanceLog>> GetByUserAsync(
+            string userCode, DateTime from, DateTime to, int? clientId = null)
+        {
+            var query = _dbSet
+                .Where(a => a.UserCode == userCode && a.PunchTime >= from && a.PunchTime <= to);
+            if (clientId.HasValue)
+                query = query.Where(a => a.ClientId == clientId);
+            return await query.OrderBy(a => a.PunchTime).ToListAsync();
+        }
 
         public async Task<bool> IsDuplicateAsync(string deviceSN, string userCode, DateTime punchTime, int windowSeconds)
         {

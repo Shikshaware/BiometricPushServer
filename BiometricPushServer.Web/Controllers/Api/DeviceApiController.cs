@@ -36,6 +36,18 @@ namespace BiometricPushServer.Web.Controllers.Api
             return Ok(ApiResponse<object>.Ok(device));
         }
 
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] DeviceUpdateDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse<object>.Fail("Invalid payload"));
+
+            var result = await _deviceService.UpdateDeviceAsync(id, dto);
+            return result == null
+                ? NotFound(ApiResponse<object>.Fail("Device not found", 404))
+                : Ok(ApiResponse<object>.Ok(result));
+        }
+
         [HttpPost("{id:int}/approve")]
         public async Task<IActionResult> Approve(int id)
         {

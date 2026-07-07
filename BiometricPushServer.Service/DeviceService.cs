@@ -134,6 +134,24 @@ namespace BiometricPushServer.Service
                 await _uow.SaveChangesAsync();
         }
 
+        public async Task<DeviceDto?> UpdateDeviceAsync(int deviceId, DeviceUpdateDto dto)
+        {
+            var device = await _uow.Devices.GetByIdAsync(deviceId);
+            if (device == null) return null;
+
+            device.DeviceName = dto.DeviceName;
+            device.Location = dto.Location;
+            if (dto.ClientId.HasValue) device.ClientId = dto.ClientId;
+            if (dto.LocationId.HasValue) device.LocationId = dto.LocationId;
+            device.UpdatedOn = DateTime.UtcNow;
+
+            _uow.Devices.Update(device);
+            await _uow.SaveChangesAsync();
+
+            var onlineThreshold = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes);
+            return MapToDto(device, onlineThreshold);
+        }
+
         private static DeviceDto MapToDto(BioDevice d, DateTime onlineThreshold) => new DeviceDto
         {
             Id = d.Id,
