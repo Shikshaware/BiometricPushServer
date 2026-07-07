@@ -54,6 +54,68 @@ namespace BiometricPushServer.Web.Controllers
             await _deviceService.ApproveDeviceAsync(id);
             return RedirectToAction(nameof(Index));
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Lock(int id)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound();
+            await _deviceService.SetLockedAsync(id, true);
+            await _commandService.EnqueueAsync(device.SerialNumber, "LOCK");
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Unlock(int id)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound();
+            await _deviceService.SetLockedAsync(id, false);
+            await _commandService.EnqueueAsync(device.SerialNumber, "UNLOCK");
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Restart(int id)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound();
+            await _commandService.EnqueueAsync(device.SerialNumber, "RESTART");
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SyncTime(int id)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound();
+            await _commandService.EnqueueAsync(device.SerialNumber, "SYNCTIME");
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ClearAttendance(int id)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound();
+            await _commandService.EnqueueAsync(device.SerialNumber, "CLEAR ATT LOG");
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ClearUsers(int id)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound();
+            await _commandService.EnqueueAsync(device.SerialNumber, "CLEAR DATA");
+            return RedirectToAction(nameof(Details), new { id });
+        }
     }
 
     [Authorize]

@@ -261,4 +261,19 @@ namespace BiometricPushServer.Data.EntityConfigurations
             builder.HasIndex(x => x.StartedOn);
         }
     }
+
+    public class BioTransactionConfiguration : IEntityTypeConfiguration<BioTransaction>
+    {
+        public void Configure(EntityTypeBuilder<BioTransaction> builder)
+        {
+            builder.HasKey(x => x.Id);
+            builder.Property(x => x.DeviceSN).IsRequired().HasMaxLength(100);
+            builder.Property(x => x.UserCode).IsRequired().HasMaxLength(50);
+            builder.Property(x => x.RawData).HasMaxLength(2000);
+
+            builder.HasIndex(x => new { x.DeviceSN, x.UserCode, x.TransactionTime });
+            builder.HasIndex(x => x.ClientId);
+            builder.HasIndex(x => x.TransactionTime);
+        }
+    }
 }

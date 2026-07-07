@@ -45,7 +45,7 @@ namespace BiometricPushServer.Web.Jobs
         public async Task ExpireStaleCommandsAsync()
         {
             _logger.LogDebug("Expiring stale commands...");
-            var pending = await _commandService.GetPendingAsync(string.Empty);
+            var pending = await _commandService.GetAllPendingAsync();
             foreach (var cmd in pending)
             {
                 if (cmd.RetryCount >= 3)

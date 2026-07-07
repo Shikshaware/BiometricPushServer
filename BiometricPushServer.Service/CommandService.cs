@@ -38,6 +38,9 @@ namespace BiometricPushServer.Service
         public async Task<IEnumerable<BioDeviceCommand>> GetPendingAsync(string deviceSN) =>
             await _uow.Commands.GetPendingCommandsAsync(deviceSN);
 
+        public async Task<IEnumerable<BioDeviceCommand>> GetAllPendingAsync() =>
+            await _uow.Commands.GetAllPendingAsync();
+
         public async Task MarkSentAsync(int commandId)
         {
             var cmd = await _uow.Commands.GetByIdAsync(commandId);

@@ -29,6 +29,7 @@ namespace BiometricPushServer.Service.Interfaces
     {
         Task<BioDeviceCommand> EnqueueAsync(string deviceSN, string commandType, string? parameters = null, int? clientId = null);
         Task<IEnumerable<BioDeviceCommand>> GetPendingAsync(string deviceSN);
+        Task<IEnumerable<BioDeviceCommand>> GetAllPendingAsync();
         Task MarkSentAsync(int commandId);
         Task MarkExecutedAsync(int commandId, string response);
         Task MarkFailedAsync(int commandId, string reason);

@@ -28,6 +28,7 @@ namespace BiometricPushServer.Service
             {
                 user = new BioUser
                 {
+                    ClientId = dto.ClientId,
                     UserCode = dto.UserCode,
                     Name = dto.Name,
                     CardNumber = dto.CardNumber,
