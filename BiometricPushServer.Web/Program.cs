@@ -44,8 +44,13 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 // ── MVC + Razor Views ─────────────────────────────────────────────────────────
-builder.Services.AddControllersWithViews()
-    .AddNewtonsoftJson();
+// AutoValidateAntiforgeryToken applies CSRF validation to all unsafe-verb MVC actions globally;
+// API and device endpoints opt out via [IgnoreAntiforgeryToken] on their controllers.
+builder.Services.AddControllersWithViews(opts =>
+{
+    opts.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
+})
+.AddNewtonsoftJson();
 
 // ── SignalR ───────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();

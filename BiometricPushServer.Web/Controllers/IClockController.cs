@@ -203,13 +203,18 @@ namespace BiometricPushServer.Web.Controllers
         private string GetClientIp() =>
             HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
+        // Pre-compiled Regex for log-injection prevention (reused across calls)
+        private static readonly System.Text.RegularExpressions.Regex _logControlCharsRegex =
+            new System.Text.RegularExpressions.Regex(
+                @"[\r\n\t\x00-\x1F\x7F]",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
         /// <summary>
         /// Removes newlines and control characters to prevent log-injection attacks.
         /// </summary>
         private static string SanitizeForLog(string? value) =>
             value == null ? string.Empty :
-            System.Text.RegularExpressions.Regex.Replace(value, @"[\r\n\t\x00-\x1F\x7F]", "_")
-                  .Truncate(200);
+            _logControlCharsRegex.Replace(value, "_").Truncate(200);
 
         private async Task<string> ReadBodyAsync()
         {

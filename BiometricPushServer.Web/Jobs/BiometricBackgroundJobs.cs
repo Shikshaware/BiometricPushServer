@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
+using BiometricPushServer.Repository.Interfaces;
 using BiometricPushServer.Service.Interfaces;
 using Hangfire;
 using Microsoft.Extensions.Logging;
@@ -10,20 +12,23 @@ namespace BiometricPushServer.Web.Jobs
     {
         private readonly IDeviceService _deviceService;
         private readonly ICommandService _commandService;
+        private readonly IUnitOfWork _uow;
         private readonly ILogger<BiometricBackgroundJobs> _logger;
 
         public BiometricBackgroundJobs(
             IDeviceService deviceService,
             ICommandService commandService,
+            IUnitOfWork uow,
             ILogger<BiometricBackgroundJobs> logger)
         {
             _deviceService = deviceService;
             _commandService = commandService;
+            _uow = uow;
             _logger = logger;
         }
 
         /// <summary>
-        /// Detect devices that stopped sending heartbeats → mark as offline.
+        /// Detect devices that stopped sending heartbeats and mark them as offline.
         /// Runs every minute via Hangfire.
         /// </summary>
         [AutomaticRetry(Attempts = 0)]
@@ -34,34 +39,42 @@ namespace BiometricPushServer.Web.Jobs
         }
 
         /// <summary>
-        /// Retry commands that have been sent but not acknowledged after a timeout.
+        /// Mark commands that have exceeded their retry limit as permanently failed.
         /// </summary>
         [AutomaticRetry(Attempts = 0)]
-        public async Task RetryStaleCommandsAsync()
+        public async Task ExpireStaleCommandsAsync()
         {
-            _logger.LogDebug("Running stale command retry...");
+            _logger.LogDebug("Expiring stale commands...");
             var pending = await _commandService.GetPendingAsync(string.Empty);
             foreach (var cmd in pending)
             {
                 if (cmd.RetryCount >= 3)
-                    await _commandService.MarkFailedAsync(cmd.Id, "Max retry exceeded");
+                    await _commandService.MarkFailedAsync(cmd.Id, "Max retry count exceeded");
             }
         }
 
         /// <summary>
-        /// Purge old heartbeat records (keep last 7 days).
+        /// Purge heartbeat records older than 7 days to keep the table compact.
         /// </summary>
         [AutomaticRetry(Attempts = 0)]
-        public Task CleanupOldHeartbeatsAsync()
+        public async Task CleanupOldHeartbeatsAsync()
         {
-            // Handled by SQL scheduled job or EF cleanup — placeholder
-            _logger.LogDebug("Heartbeat cleanup placeholder");
-            return Task.CompletedTask;
+            _logger.LogDebug("Cleaning up old heartbeat records...");
+            var cutoff = DateTime.UtcNow.AddDays(-7);
+            var old = await _uow.Heartbeats.FindAsync(h => h.PingTime < cutoff);
+            foreach (var h in old)
+                _uow.Heartbeats.Remove(h);
+
+            var removed = old.Count();
+            if (removed > 0)
+            {
+                await _uow.SaveChangesAsync();
+                _logger.LogInformation("Removed {Count} old heartbeat records", removed);
+            }
         }
 
         /// <summary>
-        /// Schedule all recurring jobs.
-        /// Call once on app startup.
+        /// Schedule all recurring jobs. Call once on app startup.
         /// </summary>
         public static void ScheduleAll()
         {
@@ -71,14 +84,14 @@ namespace BiometricPushServer.Web.Jobs
                 Cron.Minutely);
 
             RecurringJob.AddOrUpdate<BiometricBackgroundJobs>(
-                "retry-stale-commands",
-                j => j.RetryStaleCommandsAsync(),
+                "expire-stale-commands",
+                j => j.ExpireStaleCommandsAsync(),
                 "*/5 * * * *");  // every 5 minutes
 
             RecurringJob.AddOrUpdate<BiometricBackgroundJobs>(
                 "cleanup-heartbeats",
                 j => j.CleanupOldHeartbeatsAsync(),
-                Cron.Daily(3));  // 3 AM
+                Cron.Daily(3));  // 3 AM daily
         }
     }
 }
