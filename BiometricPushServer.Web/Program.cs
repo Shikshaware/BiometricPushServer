@@ -26,6 +26,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
 var config = builder.Configuration;
+var configuredUrls =
+    config["urls"] ??
+    config["ASPNETCORE_URLS"] ??
+    Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+var hasConfiguredKestrelEndpoints = config.GetSection("Kestrel:Endpoints").Exists();
+
+if (string.IsNullOrWhiteSpace(configuredUrls) && !hasConfiguredKestrelEndpoints)
+{
+    builder.WebHost.UseUrls("http://0.0.0.0:5000");
+}
+
 var connStr = config.GetConnectionString("Default")
               ?? "Server=localhost;Database=BiometricPushServer;Trusted_Connection=True;";
 
@@ -137,7 +148,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/iclock", StringComparison.OrdinalIgnoreCase),
+    branch => branch.UseHttpsRedirection());
 app.UseStaticFiles();
 app.UseSerilogRequestLogging();
 
