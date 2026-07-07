@@ -1,5 +1,4 @@
 using System.Text;
-using System.Linq;
 using BiometricPushServer.Data;
 using BiometricPushServer.Repository;
 using BiometricPushServer.Repository.Interfaces;
@@ -32,22 +31,38 @@ var configuredUrls =
     config["ASPNETCORE_URLS"] ??
     Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
 var hasConfiguredKestrelEndpoints = config.GetSection("Kestrel:Endpoints").Exists();
-var hasValidConfiguredUrls =
-    !string.IsNullOrWhiteSpace(configuredUrls) &&
-    configuredUrls
-        .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .Any(url =>
-            Uri.TryCreate(url, UriKind.Absolute, out var parsedUrl) &&
-            (string.Equals(parsedUrl.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(parsedUrl.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)));
+var hasValidConfiguredUrls = false;
+
+if (!string.IsNullOrWhiteSpace(configuredUrls))
+{
+    foreach (var url in configuredUrls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var parsedUrl))
+        {
+            continue;
+        }
+
+        if (string.Equals(parsedUrl.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(parsedUrl.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            hasValidConfiguredUrls = true;
+            break;
+        }
+    }
+}
+
+var defaultDeviceUrl =
+    config["DeviceCompatibility:DefaultHttpUrl"] ??
+    "http://localhost:5000";
+var allowHttpIClock = config.GetValue("DeviceCompatibility:AllowHttpIClock", false);
 
 if (!hasValidConfiguredUrls && !hasConfiguredKestrelEndpoints)
 {
     // Keep the legacy device port when the host has not explicitly configured bindings.
     builder.WebHost.UseUrls(
-        builder.Environment.IsDevelopment()
-            ? "http://localhost:5000"
-            : "http://0.0.0.0:5000");
+        Uri.TryCreate(defaultDeviceUrl, UriKind.Absolute, out _)
+            ? defaultDeviceUrl
+            : "http://localhost:5000");
 }
 
 var connStr = config.GetConnectionString("Default")
@@ -161,10 +176,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// IClock devices are commonly configured for plain HTTP and may not follow HTTPS redirects.
-app.UseWhen(
-    context => !context.Request.Path.StartsWithSegments("/iclock", StringComparison.OrdinalIgnoreCase),
-    branch => branch.UseHttpsRedirection());
+if (allowHttpIClock)
+{
+    // IClock devices are commonly configured for plain HTTP and may not follow HTTPS redirects.
+    app.UseWhen(
+        context => !context.Request.Path.StartsWithSegments("/iclock", StringComparison.OrdinalIgnoreCase),
+        branch => branch.UseHttpsRedirection());
+}
+else
+{
+    app.UseHttpsRedirection();
+}
 app.UseStaticFiles();
 app.UseSerilogRequestLogging();
 

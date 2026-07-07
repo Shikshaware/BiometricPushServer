@@ -69,7 +69,7 @@ dotnet run --project BiometricPushServer.Web
 
 The server starts on `https://localhost:5001` (HTTPS) and `http://localhost:5000` (HTTP) by default.
 
-If you do not explicitly set `ASPNETCORE_URLS` or Kestrel endpoints, the app keeps listening on HTTP port `5000` so already-configured biometric devices can continue to reach it. In production, set your own host bindings if you need a different interface or port exposure policy.
+If you do not explicitly set `ASPNETCORE_URLS` or Kestrel endpoints, the app uses `DeviceCompatibility:DefaultHttpUrl` from configuration so already-configured biometric devices can continue to reach HTTP port `5000`. In production, set your own host bindings if you need a different interface or port exposure policy.
 
 ---
 
@@ -120,7 +120,7 @@ In the device's network settings, set the **ADMS / Push server** address to:
 http://YOUR_SERVER_IP:5000/iclock/
 ```
 
-For compatibility with devices that are already configured for plain HTTP push, `/iclock/*` requests are accepted on that HTTP port without HTTPS redirection. Deploy these device callbacks only on a trusted LAN/VPN or behind network controls that fit your environment.
+For compatibility with devices that are already configured for plain HTTP push, `/iclock/*` requests can be accepted on that HTTP port without HTTPS redirection when `DeviceCompatibility:AllowHttpIClock` is enabled. Deploy these device callbacks only on a trusted LAN/VPN or behind network controls that fit your environment.
 
 The server exposes the following IClock endpoints automatically — no additional configuration is needed:
 
