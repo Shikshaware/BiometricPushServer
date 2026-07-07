@@ -1,0 +1,30 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Users";
+}
+@model BiometricPushServer.Common.DTOs.PagedResult<BiometricPushServer.Common.DTOs.UserDto>
+
+<h3 class="mb-3"><i class="bi bi-people"></i> Users</h3>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-dark">
+                <tr><th>Code</th><th>Name</th><th>Card</th><th>Privilege</th><th>Enabled</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var u in Model.Items)
+                {
+                    <tr>
+                        <td>@u.UserCode</td>
+                        <td>@u.Name</td>
+                        <td>@u.CardNumber</td>
+                        <td>@(u.Privilege == 14 ? "Admin" : "User")</td>
+                        <td>@(u.IsEnabled ? "✔" : "✘")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer">Page @Model.PageNumber of @Model.TotalPages</div>
+</div>

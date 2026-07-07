@@ -1,0 +1,65 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Devices";
+}
+@model IEnumerable<BiometricPushServer.Common.DTOs.DeviceDto>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-cpu"></i> Devices</h3>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>SN</th><th>Name</th><th>IP</th><th>Location</th>
+                    <th>Firmware</th><th>Status</th><th>Approved</th>
+                    <th>Last Heartbeat</th><th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model)
+                {
+                    <tr>
+                        <td><code>@d.SerialNumber</code></td>
+                        <td>@d.DeviceName</td>
+                        <td>@d.IpAddress</td>
+                        <td>@d.Location</td>
+                        <td>@d.FirmwareVersion</td>
+                        <td>
+                            @if (d.IsOnline)
+                            {
+                                <span class="badge bg-success">Online</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">Offline</span>
+                            }
+                        </td>
+                        <td>
+                            @if (d.IsApproved)
+                            {
+                                <span class="badge bg-success">Yes</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            }
+                        </td>
+                        <td>@(d.LastHeartbeatOn?.ToString("dd-MMM HH:mm:ss") ?? "-")</td>
+                        <td>
+                            <a asp-action="Details" asp-route-id="@d.Id" class="btn btn-sm btn-outline-info">View</a>
+                            @if (!d.IsApproved)
+                            {
+                                <form method="post" asp-action="Approve" asp-route-id="@d.Id" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

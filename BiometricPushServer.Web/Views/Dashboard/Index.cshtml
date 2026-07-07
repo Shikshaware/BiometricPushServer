@@ -1,0 +1,117 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Dashboard";
+}
+@model BiometricPushServer.Common.DTOs.DashboardStatsDto
+
+<h3 class="mb-4"><i class="bi bi-speedometer2"></i> Live Dashboard</h3>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-2">
+        <div class="card card-stat border-primary text-center p-3">
+            <div class="fs-2 fw-bold text-primary">@Model.TotalDevices</div>
+            <small>Total Devices</small>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-stat border-success text-center p-3">
+            <div class="fs-2 fw-bold text-success">@Model.OnlineDevices</div>
+            <small>Online</small>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-stat border-danger text-center p-3">
+            <div class="fs-2 fw-bold text-danger">@Model.OfflineDevices</div>
+            <small>Offline</small>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-stat border-info text-center p-3">
+            <div class="fs-2 fw-bold text-info" id="todayCount">@Model.TodayAttendance</div>
+            <small>Today's Punches</small>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-stat border-warning text-center p-3">
+            <div class="fs-2 fw-bold text-warning">@Model.TotalUsers</div>
+            <small>Users</small>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-stat border-secondary text-center p-3">
+            <div class="fs-2 fw-bold text-secondary">@Model.PendingCommands</div>
+            <small>Pending Cmds</small>
+        </div>
+    </div>
+</div>
+
+<!-- Live feed -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-broadcast"></i> Live Attendance Feed</span>
+        <span id="hubStatus" class="badge bg-warning">Connecting...</span>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" id="attTable">
+            <thead class="table-dark">
+                <tr>
+                    <th>Time</th><th>User</th><th>Device</th>
+                    <th>State</th><th>Method</th><th>Duplicate</th>
+                </tr>
+            </thead>
+            <tbody id="attBody">
+                @foreach (var log in Model.RecentPunches)
+                {
+                    <tr>
+                        <td>@log.PunchTime.ToString("HH:mm:ss")</td>
+                        <td>@log.UserCode @(string.IsNullOrEmpty(log.UserName) ? "" : $"({log.UserName})")</td>
+                        <td>@log.DeviceSN</td>
+                        <td>@log.AttendanceState</td>
+                        <td>@log.VerifyMode</td>
+                        <td>@(log.IsDuplicate ? "⚠" : "")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/hubs/attendance")
+        .withAutomaticReconnect()
+        .build();
+
+    connection.on("AttendanceUpdated", function (logs) {
+        const tbody = document.getElementById("attBody");
+        tbody.innerHTML = "";
+        let count = 0;
+        logs.slice(0, 20).forEach(function (log) {
+            const row = `<tr>
+                <td>${new Date(log.punchTime).toLocaleTimeString()}</td>
+                <td>${log.userCode} ${log.userName ? '(' + log.userName + ')' : ''}</td>
+                <td>${log.deviceSN}</td>
+                <td>${log.attendanceState}</td>
+                <td>${log.verifyMode}</td>
+                <td>${log.isDuplicate ? '⚠' : ''}</td>
+            </tr>`;
+            tbody.insertAdjacentHTML('afterbegin', row);
+            count++;
+        });
+        document.getElementById("todayCount").textContent = logs.length;
+    });
+
+    connection.on("Connected", function () {
+        document.getElementById("hubStatus").textContent = "Live";
+        document.getElementById("hubStatus").className = "badge bg-success";
+    });
+
+    connection.start().catch(function (err) {
+        console.error(err.toString());
+        document.getElementById("hubStatus").textContent = "Offline";
+        document.getElementById("hubStatus").className = "badge bg-danger";
+    });
+</script>
+}

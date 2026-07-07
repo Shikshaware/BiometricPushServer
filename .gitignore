@@ -1,0 +1,31 @@
+# Build outputs
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.nupkg
+
+# Logs
+logs/
+*.log
+
+# EF migrations snapshots auto-generated
+# (keep Migrations/ folder, but exclude designer files if needed)
+
+# dotnet secrets
+secrets.json
+appsettings.local.json
+appsettings.*.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rider/JetBrains
+.idea/
+*.sln.iml
+
+# Test results
+TestResults/
+coverage/

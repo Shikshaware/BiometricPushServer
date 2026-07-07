@@ -1,0 +1,36 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Attendance";
+}
+@model BiometricPushServer.Common.DTOs.PagedResult<BiometricPushServer.Common.DTOs.AttendanceLogDto>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-clock-history"></i> Attendance Logs</h3>
+    <a asp-action="Today" class="btn btn-primary"><i class="bi bi-calendar-day"></i> Today's Logs</a>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-dark">
+                <tr><th>Time</th><th>User</th><th>Device SN</th><th>State</th><th>Method</th><th>Dup?</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var log in Model.Items)
+                {
+                    <tr class="@(log.IsDuplicate ? "table-warning" : "")">
+                        <td>@log.PunchTime.ToString("dd-MMM-yyyy HH:mm:ss")</td>
+                        <td>@log.UserCode @(string.IsNullOrEmpty(log.UserName) ? "" : $"({log.UserName})")</td>
+                        <td><code>@log.DeviceSN</code></td>
+                        <td>@log.AttendanceState</td>
+                        <td>@log.VerifyMode</td>
+                        <td>@(log.IsDuplicate ? "⚠" : "")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer">
+        Page @Model.PageNumber of @Model.TotalPages — @Model.TotalCount total records
+    </div>
+</div>
