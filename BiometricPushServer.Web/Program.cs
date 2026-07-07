@@ -4,9 +4,11 @@ using BiometricPushServer.Repository;
 using BiometricPushServer.Repository.Interfaces;
 using BiometricPushServer.Service;
 using BiometricPushServer.Service.Interfaces;
+using BiometricPushServer.Web.Filters;
 using BiometricPushServer.Web.Hubs;
 using BiometricPushServer.Web.Jobs;
 using Hangfire;
+using Hangfire.Dashboard;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -64,7 +66,8 @@ builder.Services.AddAuthentication(opts =>
 })
 .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, opts =>
 {
-    opts.RequireHttpsMetadata = false;
+    // Only skip HTTPS metadata requirement in Development (e.g. local HTTP testing)
+    opts.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     opts.SaveToken = true;
     opts.TokenValidationParameters = new TokenValidationParameters
     {
@@ -139,8 +142,11 @@ app.UseAuthorization();
 // SignalR hub
 app.MapHub<AttendanceHub>("/hubs/attendance");
 
-// Hangfire dashboard (restrict in production)
-app.UseHangfireDashboard("/hangfire");
+// Hangfire dashboard — require authenticated admin user
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireAdminAuthFilter() }
+});
 
 // MVC routes
 app.MapControllerRoute(

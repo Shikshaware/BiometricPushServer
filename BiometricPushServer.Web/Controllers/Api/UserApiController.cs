@@ -9,6 +9,7 @@ namespace BiometricPushServer.Web.Controllers.Api
     [ApiController]
     [Route("api/user")]
     [Authorize]
+    [IgnoreAntiforgeryToken]
     public class UserApiController : ControllerBase
     {
         private readonly IUserService _userService;

@@ -9,6 +9,7 @@ namespace BiometricPushServer.Web.Controllers.Api
     [ApiController]
     [Route("api/command")]
     [Authorize]
+    [IgnoreAntiforgeryToken]
     public class CommandApiController : ControllerBase
     {
         private readonly ICommandService _commandService;

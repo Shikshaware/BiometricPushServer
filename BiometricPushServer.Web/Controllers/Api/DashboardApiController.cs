@@ -9,6 +9,7 @@ namespace BiometricPushServer.Web.Controllers.Api
     [ApiController]
     [Route("api/dashboard")]
     [Authorize]
+    [IgnoreAntiforgeryToken]
     public class DashboardApiController : ControllerBase
     {
         private readonly IDashboardService _dashboardService;

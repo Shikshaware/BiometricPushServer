@@ -10,6 +10,7 @@ namespace BiometricPushServer.Web.Controllers.Api
     [ApiController]
     [Route("api/attendance")]
     [Authorize]
+    [IgnoreAntiforgeryToken]
     public class AttendanceApiController : ControllerBase
     {
         private readonly IAttendanceService _attendanceService;

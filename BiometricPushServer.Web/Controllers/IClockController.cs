@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BiometricPushServer.Common.DTOs;
+using BiometricPushServer.Common.Extensions;
 using BiometricPushServer.Service.Interfaces;
 using BiometricPushServer.Web.Hubs;
 using Microsoft.AspNetCore.Mvc;
@@ -19,6 +20,7 @@ namespace BiometricPushServer.Web.Controllers
     /// data to /iclock/cdata and poll /iclock/getrequest for remote commands.
     /// </summary>
     [Route("iclock")]
+    [IgnoreAntiforgeryToken]   // Device-to-server protocol; not a browser form
     public class IClockController : Controller
     {
         private readonly IDeviceService _deviceService;
@@ -53,7 +55,8 @@ namespace BiometricPushServer.Web.Controllers
                 return BadRequest();
 
             var ip = GetClientIp();
-            _logger.LogInformation("IClock CDATA GET from SN={SN} IP={Ip}", SN, ip);
+            _logger.LogInformation("IClock CDATA GET from SN={SN} IP={Ip}",
+                SanitizeForLog(SN), SanitizeForLog(ip));
 
             await _deviceService.RegisterOrUpdateAsync(new DeviceRegistrationDto
             {
@@ -92,7 +95,8 @@ namespace BiometricPushServer.Web.Controllers
             var ip = GetClientIp();
             var body = await ReadBodyAsync();
 
-            _logger.LogDebug("IClock CDATA POST SN={SN} Table={Table} Body={Body}", SN, table, body);
+            _logger.LogDebug("IClock CDATA POST SN={SN} Table={Table} Body={Body}",
+                SanitizeForLog(SN), SanitizeForLog(table), SanitizeForLog(body));
 
             var device = await _deviceService.GetBySerialNumberAsync(SN);
 
@@ -114,7 +118,8 @@ namespace BiometricPushServer.Web.Controllers
                     SN, records, device?.ClientId);
 
                 _logger.LogInformation(
-                    "IClock ATTLOG SN={SN}: saved={Saved} duplicates={Dup}", SN, saved, duplicates);
+                    "IClock ATTLOG SN={SN}: saved={Saved} duplicates={Dup}",
+                    SanitizeForLog(SN), saved, duplicates);
 
                 // Push live updates via SignalR
                 if (saved > 0)
@@ -165,7 +170,8 @@ namespace BiometricPushServer.Web.Controllers
                 return BadRequest();
 
             var body = await ReadBodyAsync();
-            _logger.LogInformation("IClock DeviceCmd SN={SN} Response={Body}", SN, body);
+            _logger.LogInformation("IClock DeviceCmd SN={SN} Response={Body}",
+                SanitizeForLog(SN), SanitizeForLog(body));
 
             // Parse: "ID=<id>\r\nReturn=<code>\r\nCMD=<type>"
             var lines = body.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
@@ -196,6 +202,14 @@ namespace BiometricPushServer.Web.Controllers
 
         private string GetClientIp() =>
             HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        /// <summary>
+        /// Removes newlines and control characters to prevent log-injection attacks.
+        /// </summary>
+        private static string SanitizeForLog(string? value) =>
+            value == null ? string.Empty :
+            System.Text.RegularExpressions.Regex.Replace(value, @"[\r\n\t\x00-\x1F\x7F]", "_")
+                  .Truncate(200);
 
         private async Task<string> ReadBodyAsync()
         {

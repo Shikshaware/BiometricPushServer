@@ -64,6 +64,7 @@ namespace BiometricPushServer.Web.Controllers
         /// POST /api/auth/token
         /// </summary>
         [HttpPost("/api/auth/token")]
+        [IgnoreAntiforgeryToken]  // REST endpoint — uses credentials in body, not cookies
         public IActionResult Token([FromBody] LoginRequest request)
         {
             var adminUser = _config["Auth:AdminUsername"] ?? "admin";

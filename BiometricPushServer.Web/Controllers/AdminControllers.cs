@@ -48,6 +48,7 @@ namespace BiometricPushServer.Web.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Approve(int id)
         {
             await _deviceService.ApproveDeviceAsync(id);

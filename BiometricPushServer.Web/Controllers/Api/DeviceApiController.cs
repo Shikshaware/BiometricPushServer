@@ -1,8 +1,6 @@
 using System.Threading.Tasks;
-using BiometricPushServer.Common.Constants;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Service.Interfaces;
-using BiometricPushServer.Web.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,6 +9,7 @@ namespace BiometricPushServer.Web.Controllers.Api
     [ApiController]
     [Route("api/device")]
     [Authorize]
+    [IgnoreAntiforgeryToken]
     public class DeviceApiController : ControllerBase
     {
         private readonly IDeviceService _deviceService;

@@ -54,9 +54,9 @@ namespace BiometricPushServer.Service
 
                     if (isDuplicate) duplicates++; else saved++;
                 }
-                catch (Exception)
+                catch (Microsoft.EntityFrameworkCore.DbUpdateException)
                 {
-                    // EF unique constraint violation (exact duplicate) — skip
+                    // Unique constraint violation (exact duplicate punch) — treat as duplicate
                     duplicates++;
                 }
             }
