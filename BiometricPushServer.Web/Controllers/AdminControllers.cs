@@ -161,6 +161,14 @@ namespace BiometricPushServer.Web.Controllers
     [Authorize]
     public class UserController : Controller
     {
+        private const string DefaultUserGroup = "1";
+        private const string DefaultUserTimezone = "0000000000000000";
+        private const string DefaultUserVerifyMode = "0";
+        private const string DefaultUserViceCard = "0";
+        private const string DefaultFingerprintIndex = "0";
+        private const string DefaultEnrollRetryCount = "3";
+        private const string DefaultEnrollOverwrite = "1";
+
         private readonly IUserService _userService;
         private readonly IDeviceService _deviceService;
         private readonly ICommandService _commandService;
@@ -205,7 +213,7 @@ namespace BiometricPushServer.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Upsert(int selectedDeviceId, UserDto dto, bool enrollFinger = false, bool enrollFace = false)
+        public async Task<IActionResult> Upsert(int selectedDeviceId, UserDto dto, bool enrollFingerprint = false, bool enrollFace = false)
         {
             var device = await _deviceService.GetDeviceDtoAsync(selectedDeviceId);
             if (device == null) return NotFound();
@@ -218,7 +226,7 @@ namespace BiometricPushServer.Web.Controllers
                 "DATA UPDATE USERINFO",
                 commandText: BuildUserUpsertCommand(user));
 
-            if (enrollFinger)
+            if (enrollFingerprint)
             {
                 await _commandService.EnqueueAsync(
                     device.SerialNumber,
@@ -299,7 +307,7 @@ namespace BiometricPushServer.Web.Controllers
             var sanitizedCard = SanitizeCommandValue(user.CardNumber);
             var safeCode = SanitizeCommandValue(user.UserCode);
 
-            return $"DATA UPDATE USERINFO PIN={safeCode}\tName={sanitizedName}\tPri={user.Privilege}\tPasswd=\tCard={sanitizedCard}\tGrp=1\tTZ=0000000000000000\tVerify=0\tViceCard=0";
+            return $"DATA UPDATE USERINFO PIN={safeCode}\tName={sanitizedName}\tPri={user.Privilege}\tPasswd=\tCard={sanitizedCard}\tGrp={DefaultUserGroup}\tTZ={DefaultUserTimezone}\tVerify={DefaultUserVerifyMode}\tViceCard={DefaultUserViceCard}";
         }
 
         private static string BuildUserDeleteCommand(string userCode)
@@ -311,13 +319,13 @@ namespace BiometricPushServer.Web.Controllers
         private static string BuildFingerprintEnrollCommand(string userCode)
         {
             var safeCode = SanitizeCommandValue(userCode);
-            return $"ENROLL_FP PIN={safeCode} FID=0 RETRY=3 OVERWRITE=1";
+            return $"ENROLL_FP PIN={safeCode} FID={DefaultFingerprintIndex} RETRY={DefaultEnrollRetryCount} OVERWRITE={DefaultEnrollOverwrite}";
         }
 
         private static string BuildFaceEnrollCommand(string userCode)
         {
             var safeCode = SanitizeCommandValue(userCode);
-            return $"ENROLL_FACE PIN={safeCode} RETRY=3";
+            return $"ENROLL_FACE PIN={safeCode} RETRY={DefaultEnrollRetryCount}";
         }
 
         private static string SanitizeCommandValue(string? value) =>
