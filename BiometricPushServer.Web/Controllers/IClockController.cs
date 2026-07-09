@@ -331,7 +331,7 @@ namespace BiometricPushServer.Web.Controllers
             }
 
             var whitespaceParts = line.Split(
-                (char[]?)null,
+                null,
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             if (whitespaceParts.Length < 3 ||

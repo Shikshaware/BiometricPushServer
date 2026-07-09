@@ -145,7 +145,8 @@ namespace BiometricPushServer.Tests
 
             var controller = BuildController(deviceSvcMock, attendanceSvcMock);
 
-            var body = "1  2024-03-15  09:00:00  0  1  0  0\r\n2    2024-03-15    09:05:00    1    2    9    0\r\n";
+            // Variable spacing is intentional to verify parsing across devices that emit different whitespace widths.
+            var body = "1    2024-03-15    09:00:00    0    1    0    0\r\n2    2024-03-15    09:05:00    1    2    9    0\r\n";
             SetRequestBody(controller, body);
 
             var result = await controller.CDataPost("SN002", table: "ATTLOG");
