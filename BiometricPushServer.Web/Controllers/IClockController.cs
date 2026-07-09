@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Common.Extensions;
+using BiometricPushServer.Common.Constants;
+using BiometricPushServer.Domain;
 using BiometricPushServer.Service.Interfaces;
 using BiometricPushServer.Web.Hubs;
 using Microsoft.AspNetCore.Mvc;
@@ -59,13 +61,14 @@ namespace BiometricPushServer.Web.Controllers
             _logger.LogInformation("IClock CDATA GET from SN={SN} IP={Ip}",
                 SanitizeForLog(SN), SanitizeForLog(ip));
 
-            await _deviceService.RegisterOrUpdateAsync(new DeviceRegistrationDto
+            var device = await _deviceService.RegisterOrUpdateAsync(new DeviceRegistrationDto
             {
                 SerialNumber = SN,
                 DeviceName = SN,
                 IpAddress = ip
             }, ip);
 
+            await QueueAutomaticAttendanceSyncOnReconnectAsync(device);
             await _deviceService.UpdateHeartbeatAsync(SN, ip, Request.QueryString.Value ?? string.Empty);
 
             // Standard IClock response: UTC timestamp + server info
@@ -111,6 +114,7 @@ namespace BiometricPushServer.Web.Controllers
                 }, ip);
             }
 
+            await QueueAutomaticAttendanceSyncOnReconnectAsync(device);
             await _deviceService.UpdateHeartbeatAsync(SN, ip, body);
 
             if (string.Equals(table, "ATTLOG", StringComparison.OrdinalIgnoreCase))
@@ -145,6 +149,8 @@ namespace BiometricPushServer.Web.Controllers
                 return Content(string.Empty, "text/plain", Encoding.UTF8);
 
             var ip = GetClientIp();
+            var device = await _deviceService.GetBySerialNumberAsync(SN);
+            await QueueAutomaticAttendanceSyncOnReconnectAsync(device);
             await _deviceService.UpdateHeartbeatAsync(SN, ip, string.Empty);
 
             var pending = await _commandService.GetPendingAsync(SN);
@@ -206,6 +212,39 @@ namespace BiometricPushServer.Web.Controllers
 
         private string GetClientIp() =>
             HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        private async Task QueueAutomaticAttendanceSyncOnReconnectAsync(BioDevice? device)
+        {
+            if (!ShouldQueueAutomaticAttendanceSync(device))
+                return;
+
+            var pending = await _commandService.GetPendingAsync(device!.SerialNumber);
+            if (pending.Any(c => string.Equals(
+                c.CommandType,
+                AppConstants.CommandSyncAttendanceLogs,
+                StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            await _commandService.EnqueueAsync(
+                device.SerialNumber,
+                AppConstants.CommandSyncAttendanceLogs,
+                clientId: device.ClientId);
+
+            _logger.LogInformation(
+                "Queued automatic attendance sync for reconnected device SN={SN}",
+                SanitizeForLog(device.SerialNumber));
+        }
+
+        private static bool ShouldQueueAutomaticAttendanceSync(BioDevice? device)
+        {
+            if (device == null || !device.IsApproved || !device.IsActive || !device.LastHeartbeatOn.HasValue)
+                return false;
+
+            var offlineThreshold = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes);
+            return device.LastHeartbeatOn.Value < offlineThreshold;
+        }
 
         // Pre-compiled Regex for log-injection prevention (reused across calls)
         private static readonly System.Text.RegularExpressions.Regex _logControlCharsRegex =
