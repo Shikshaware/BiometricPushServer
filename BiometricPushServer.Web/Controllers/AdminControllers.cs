@@ -1,5 +1,8 @@
+using System.Linq;
 using System.Threading.Tasks;
 using BiometricPushServer.Common.Constants;
+using BiometricPushServer.Common.DTOs;
+using BiometricPushServer.Domain;
 using BiometricPushServer.Service.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -159,16 +162,169 @@ namespace BiometricPushServer.Web.Controllers
     public class UserController : Controller
     {
         private readonly IUserService _userService;
+        private readonly IDeviceService _deviceService;
+        private readonly ICommandService _commandService;
 
-        public UserController(IUserService userService) => _userService = userService;
+        public UserController(
+            IUserService userService,
+            IDeviceService deviceService,
+            ICommandService commandService)
+        {
+            _userService = userService;
+            _deviceService = deviceService;
+            _commandService = commandService;
+        }
 
         public async Task<IActionResult> Index(
+            [FromQuery] int? selectedDeviceId,
+            [FromQuery] string? editUserCode,
             [FromQuery] int? clientId,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 50)
         {
-            var result = await _userService.GetAllAsync(clientId, pageNumber, pageSize);
+            var devices = (await _deviceService.GetAllDevicesAsync(clientId)).ToList();
+            var selectedDevice = selectedDeviceId.HasValue
+                ? devices.FirstOrDefault(d => d.Id == selectedDeviceId.Value)
+                : devices.FirstOrDefault();
+
+            if (selectedDevice == null)
+            {
+                TempData["Error"] = "No device available.";
+                return View(new PagedResult<UserDto> { PageNumber = 1, PageSize = pageSize, TotalCount = 0 });
+            }
+
+            var result = await _userService.GetAllAsync(selectedDevice.ClientId, pageNumber, pageSize);
+
+            ViewBag.Devices = devices;
+            ViewBag.SelectedDeviceId = selectedDevice.Id;
+            ViewBag.SelectedDeviceSN = selectedDevice.SerialNumber;
+            ViewBag.EditUserCode = editUserCode;
+
             return View(result);
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Upsert(int selectedDeviceId, UserDto dto, bool enrollFinger = false, bool enrollFace = false)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(selectedDeviceId);
+            if (device == null) return NotFound();
+
+            dto.ClientId = device.ClientId;
+            var user = await _userService.UpsertAsync(dto);
+
+            await _commandService.EnqueueAsync(
+                device.SerialNumber,
+                "DATA UPDATE USERINFO",
+                commandText: BuildUserUpsertCommand(user));
+
+            if (enrollFinger)
+            {
+                await _commandService.EnqueueAsync(
+                    device.SerialNumber,
+                    "ENROLL_FP",
+                    commandText: BuildFingerprintEnrollCommand(user.UserCode));
+            }
+
+            if (enrollFace)
+            {
+                await _commandService.EnqueueAsync(
+                    device.SerialNumber,
+                    "ENROLL_FACE",
+                    commandText: BuildFaceEnrollCommand(user.UserCode));
+            }
+
+            TempData["Success"] = "User saved and synced to selected device.";
+            return RedirectToAction(nameof(Index), new { selectedDeviceId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(int selectedDeviceId, string userCode)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(selectedDeviceId);
+            if (device == null) return NotFound();
+
+            var deleted = await _userService.DeleteAsync(userCode, device.ClientId);
+            if (!deleted)
+            {
+                TempData["Error"] = "User not found.";
+                return RedirectToAction(nameof(Index), new { selectedDeviceId });
+            }
+
+            await _commandService.EnqueueAsync(
+                device.SerialNumber,
+                "DATA DELETE USERINFO",
+                commandText: BuildUserDeleteCommand(userCode));
+
+            TempData["Success"] = "User deleted and synced to selected device.";
+            return RedirectToAction(nameof(Index), new { selectedDeviceId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EnrollFingerprint(int selectedDeviceId, string userCode)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(selectedDeviceId);
+            if (device == null) return NotFound();
+
+            await _commandService.EnqueueAsync(
+                device.SerialNumber,
+                "ENROLL_FP",
+                commandText: BuildFingerprintEnrollCommand(userCode));
+
+            TempData["Success"] = $"Fingerprint enrollment requested for user {userCode}.";
+            return RedirectToAction(nameof(Index), new { selectedDeviceId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EnrollFace(int selectedDeviceId, string userCode)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(selectedDeviceId);
+            if (device == null) return NotFound();
+
+            await _commandService.EnqueueAsync(
+                device.SerialNumber,
+                "ENROLL_FACE",
+                commandText: BuildFaceEnrollCommand(userCode));
+
+            TempData["Success"] = $"Face enrollment requested for user {userCode}.";
+            return RedirectToAction(nameof(Index), new { selectedDeviceId });
+        }
+
+        private static string BuildUserUpsertCommand(BioUser user)
+        {
+            var sanitizedName = SanitizeCommandValue(user.Name);
+            var sanitizedCard = SanitizeCommandValue(user.CardNumber);
+            var safeCode = SanitizeCommandValue(user.UserCode);
+
+            return $"DATA UPDATE USERINFO PIN={safeCode}\tName={sanitizedName}\tPri={user.Privilege}\tPasswd=\tCard={sanitizedCard}\tGrp=1\tTZ=0000000000000000\tVerify=0\tViceCard=0";
+        }
+
+        private static string BuildUserDeleteCommand(string userCode)
+        {
+            var safeCode = SanitizeCommandValue(userCode);
+            return $"DATA DELETE USERINFO PIN={safeCode}";
+        }
+
+        private static string BuildFingerprintEnrollCommand(string userCode)
+        {
+            var safeCode = SanitizeCommandValue(userCode);
+            return $"ENROLL_FP PIN={safeCode} FID=0 RETRY=3 OVERWRITE=1";
+        }
+
+        private static string BuildFaceEnrollCommand(string userCode)
+        {
+            var safeCode = SanitizeCommandValue(userCode);
+            return $"ENROLL_FACE PIN={safeCode} RETRY=3";
+        }
+
+        private static string SanitizeCommandValue(string? value) =>
+            (value ?? string.Empty)
+                .Replace("\r", string.Empty)
+                .Replace("\n", string.Empty)
+                .Replace("\t", " ")
+                .Trim();
     }
 }

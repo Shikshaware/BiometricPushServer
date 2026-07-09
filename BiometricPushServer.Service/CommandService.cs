@@ -14,7 +14,7 @@ namespace BiometricPushServer.Service
         public CommandService(IUnitOfWork uow) => _uow = uow;
 
         public async Task<BioDeviceCommand> EnqueueAsync(
-            string deviceSN, string commandType, string? parameters = null, int? clientId = null)
+            string deviceSN, string commandType, string? parameters = null, int? clientId = null, string? commandText = null)
         {
             var device = await _uow.Devices.GetBySerialNumberAsync(deviceSN);
 
@@ -24,7 +24,7 @@ namespace BiometricPushServer.Service
                 DeviceId = device?.Id,
                 ClientId = clientId ?? device?.ClientId,
                 CommandType = commandType,
-                CommandText = commandType,
+                CommandText = string.IsNullOrWhiteSpace(commandText) ? commandType : commandText,
                 Parameters = parameters ?? string.Empty,
                 CreatedOn = DateTime.UtcNow,
                 ExpiresOn = DateTime.UtcNow.AddMinutes(30)

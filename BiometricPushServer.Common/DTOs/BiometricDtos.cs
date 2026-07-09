@@ -17,6 +17,7 @@ namespace BiometricPushServer.Common.DTOs
     public class DeviceDto
     {
         public int Id { get; set; }
+        public int? ClientId { get; set; }
         public string SerialNumber { get; set; } = string.Empty;
         public string DeviceName { get; set; } = string.Empty;
         public string IpAddress { get; set; } = string.Empty;

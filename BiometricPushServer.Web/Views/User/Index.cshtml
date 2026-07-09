@@ -1,27 +1,177 @@
+@using System.Linq
+@using BiometricPushServer.Common.DTOs
 @{
     Layout = "_Layout";
     ViewData["Title"] = "Users";
 }
-@model BiometricPushServer.Common.DTOs.PagedResult<BiometricPushServer.Common.DTOs.UserDto>
+@model PagedResult<UserDto>
 
-<h3 class="mb-3"><i class="bi bi-people"></i> Users</h3>
+@{
+    var devices = ViewBag.Devices as List<DeviceDto> ?? new List<DeviceDto>();
+    var selectedDeviceId = ViewBag.SelectedDeviceId is int id ? id : 0;
+    var selectedDeviceSN = ViewBag.SelectedDeviceSN as string ?? "-";
+    var editUserCode = ViewBag.EditUserCode as string;
+    var editUser = string.IsNullOrWhiteSpace(editUserCode)
+        ? null
+        : Model.Items.FirstOrDefault(u => u.UserCode == editUserCode);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-people"></i> Device Users</h3>
+</div>
+
+@if (TempData["Success"] is string successMessage)
+{
+    <div class="alert alert-success py-2">@successMessage</div>
+}
+@if (TempData["Error"] is string errorMessage)
+{
+    <div class="alert alert-danger py-2">@errorMessage</div>
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" asp-action="Index" class="row g-2 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label">Selected Device</label>
+                <select name="selectedDeviceId" class="form-select" required>
+                    @foreach (var d in devices)
+                    {
+                        <option value="@d.Id" @(d.Id == selectedDeviceId ? "selected" : string.Empty)>
+                            @d.DeviceName (@d.SerialNumber)
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Load Users</button>
+            </div>
+            <div class="col-md-4 text-md-end text-muted">
+                Active device SN: <code>@selectedDeviceSN</code>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (selectedDeviceId > 0)
+{
+    <div class="card mb-3">
+        <div class="card-header"><strong>@(editUser == null ? "Add User" : $"Edit User: {editUser.UserCode}")</strong></div>
+        <div class="card-body">
+            <form method="post" asp-action="Upsert" class="row g-3">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="selectedDeviceId" value="@selectedDeviceId" />
+
+                <div class="col-md-3">
+                    <label class="form-label">User Code</label>
+                    <input class="form-control" name="UserCode" value="@(editUser?.UserCode ?? string.Empty)" required @(editUser != null ? "readonly" : "") />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Name</label>
+                    <input class="form-control" name="Name" value="@(editUser?.Name ?? string.Empty)" required />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Card Number</label>
+                    <input class="form-control" name="CardNumber" value="@(editUser?.CardNumber ?? string.Empty)" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Privilege</label>
+                    <select class="form-select" name="Privilege">
+                        <option value="0" @(editUser?.Privilege != 14 ? "selected" : string.Empty)>User</option>
+                        <option value="14" @(editUser?.Privilege == 14 ? "selected" : string.Empty)>Admin</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="IsEnabled" value="true" @((editUser == null || editUser.IsEnabled) ? "checked" : string.Empty) />
+                        <input type="hidden" name="IsEnabled" value="false" />
+                        <label class="form-check-label">Enabled</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="enrollFinger" value="true" />
+                        <label class="form-check-label">Ask fingerprint on device</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="enrollFace" value="true" />
+                        <label class="form-check-label">Ask face scan on device</label>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-success">Save User</button>
+                    @if (editUser != null)
+                    {
+                        <a class="btn btn-outline-secondary" asp-action="Index" asp-route-selectedDeviceId="@selectedDeviceId">Cancel</a>
+                    }
+                </div>
+            </form>
+        </div>
+    </div>
+}
 
 <div class="card">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
             <thead class="table-dark">
-                <tr><th>Code</th><th>Name</th><th>Card</th><th>Privilege</th><th>Enabled</th></tr>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Card</th>
+                    <th>Privilege</th>
+                    <th>Enabled</th>
+                    <th>Actions</th>
+                </tr>
             </thead>
             <tbody>
-                @foreach (var u in Model.Items)
+                @if (!Model.Items.Any())
                 {
                     <tr>
-                        <td>@u.UserCode</td>
-                        <td>@u.Name</td>
-                        <td>@u.CardNumber</td>
-                        <td>@(u.Privilege == 14 ? "Admin" : "User")</td>
-                        <td>@(u.IsEnabled ? "✔" : "✘")</td>
+                        <td colspan="6" class="text-center text-muted py-4">No users found for selected device.</td>
                     </tr>
+                }
+                else
+                {
+                    @foreach (var u in Model.Items)
+                    {
+                        <tr>
+                            <td>@u.UserCode</td>
+                            <td>@u.Name</td>
+                            <td>@u.CardNumber</td>
+                            <td>@(u.Privilege == 14 ? "Admin" : "User")</td>
+                            <td>@(u.IsEnabled ? "✔" : "✘")</td>
+                            <td class="d-flex gap-1">
+                                <a class="btn btn-sm btn-outline-primary"
+                                   asp-action="Index"
+                                   asp-route-selectedDeviceId="@selectedDeviceId"
+                                   asp-route-editUserCode="@u.UserCode">Edit</a>
+
+                                <form method="post" asp-action="Delete" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="selectedDeviceId" value="@selectedDeviceId" />
+                                    <input type="hidden" name="userCode" value="@u.UserCode" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Delete user @u.UserCode from selected device?')">Delete</button>
+                                </form>
+
+                                <form method="post" asp-action="EnrollFingerprint" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="selectedDeviceId" value="@selectedDeviceId" />
+                                    <input type="hidden" name="userCode" value="@u.UserCode" />
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Enroll Finger</button>
+                                </form>
+
+                                <form method="post" asp-action="EnrollFace" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="selectedDeviceId" value="@selectedDeviceId" />
+                                    <input type="hidden" name="userCode" value="@u.UserCode" />
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Enroll Face</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
                 }
             </tbody>
         </table>
@@ -35,7 +185,8 @@
                     <li class="page-item">
                         <a class="page-link" asp-action="Index"
                            asp-route-pageNumber="@(Model.PageNumber - 1)"
-                           asp-route-pageSize="@Model.PageSize">Previous</a>
+                           asp-route-pageSize="@Model.PageSize"
+                           asp-route-selectedDeviceId="@selectedDeviceId">Previous</a>
                     </li>
                 }
                 @for (int p = Math.Max(1, Model.PageNumber - 2); p <= Math.Min(Model.TotalPages, Model.PageNumber + 2); p++)
@@ -43,7 +194,8 @@
                     <li class="page-item @(p == Model.PageNumber ? "active" : "")">
                         <a class="page-link" asp-action="Index"
                            asp-route-pageNumber="@p"
-                           asp-route-pageSize="@Model.PageSize">@p</a>
+                           asp-route-pageSize="@Model.PageSize"
+                           asp-route-selectedDeviceId="@selectedDeviceId">@p</a>
                     </li>
                 }
                 @if (Model.PageNumber < Model.TotalPages)
@@ -51,7 +203,8 @@
                     <li class="page-item">
                         <a class="page-link" asp-action="Index"
                            asp-route-pageNumber="@(Model.PageNumber + 1)"
-                           asp-route-pageSize="@Model.PageSize">Next</a>
+                           asp-route-pageSize="@Model.PageSize"
+                           asp-route-selectedDeviceId="@selectedDeviceId">Next</a>
                     </li>
                 }
             </ul>

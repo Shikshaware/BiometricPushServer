@@ -158,6 +158,7 @@ namespace BiometricPushServer.Service
         private static DeviceDto MapToDto(BioDevice d, DateTime onlineThreshold) => new DeviceDto
         {
             Id = d.Id,
+            ClientId = d.ClientId,
             SerialNumber = d.SerialNumber,
             DeviceName = d.DeviceName,
             IpAddress = d.IpAddress,
