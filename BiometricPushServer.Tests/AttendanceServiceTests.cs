@@ -76,7 +76,7 @@ namespace BiometricPushServer.Tests
         }
 
         [Fact]
-        public async Task ProcessPushAsync_UnapprovedDevice_ReturnZero()
+        public async Task ProcessPushAsync_UnapprovedDevice_ReturnsZero()
         {
             // Arrange — device exists but IsApproved = false
             var device = new BioDevice
@@ -104,7 +104,7 @@ namespace BiometricPushServer.Tests
         }
 
         [Fact]
-        public async Task ProcessPushAsync_UnknownDevice_ReturnZero()
+        public async Task ProcessPushAsync_UnknownDevice_ReturnsZero()
         {
             // Arrange — device does not exist
             _deviceRepoMock.Setup(r => r.GetBySerialNumberAsync("UNKNOWN"))
