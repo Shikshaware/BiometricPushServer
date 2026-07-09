@@ -7,22 +7,16 @@ using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Domain;
 using BiometricPushServer.Repository.Interfaces;
 using BiometricPushServer.Service.Interfaces;
-using Microsoft.Extensions.Configuration;
 
 namespace BiometricPushServer.Service
 {
     public class DeviceService : IDeviceService
     {
         private readonly IUnitOfWork _uow;
-        private readonly bool _autoApproveDevices;
 
-        public DeviceService(IUnitOfWork uow, IConfiguration configuration)
+        public DeviceService(IUnitOfWork uow)
         {
             _uow = uow;
-            _autoApproveDevices = !string.Equals(
-                configuration["DeviceCompatibility:AutoApproveDevices"],
-                "false",
-                StringComparison.OrdinalIgnoreCase);
         }
 
         public async Task<BioDevice?> GetBySerialNumberAsync(string sn) =>
@@ -44,7 +38,7 @@ namespace BiometricPushServer.Service
                     DeviceModel = dto.DeviceModel,
                     ClientId = dto.ClientId,
                     IsActive = true,
-                    IsApproved = _autoApproveDevices,
+                    IsApproved = false,
                     CreatedOn = DateTime.UtcNow
                 };
                 await _uow.Devices.AddAsync(device);

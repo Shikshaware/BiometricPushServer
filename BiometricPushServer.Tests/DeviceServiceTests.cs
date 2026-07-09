@@ -4,7 +4,6 @@ using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Domain;
 using BiometricPushServer.Repository.Interfaces;
 using BiometricPushServer.Service;
-using Microsoft.Extensions.Configuration;
 using Moq;
 using Xunit;
 
@@ -12,22 +11,11 @@ namespace BiometricPushServer.Tests
 {
     public class DeviceServiceTests
     {
-        private static IConfiguration BuildConfig(bool autoApprove)
-        {
-            var dict = new System.Collections.Generic.Dictionary<string, string?>
-            {
-                ["DeviceCompatibility:AutoApproveDevices"] = autoApprove.ToString()
-            };
-            return new ConfigurationBuilder()
-                .AddInMemoryCollection(dict)
-                .Build();
-        }
-
-        private static DeviceService BuildSut(Mock<IUnitOfWork> uowMock, bool autoApprove = true)
-            => new DeviceService(uowMock.Object, BuildConfig(autoApprove));
+        private static DeviceService BuildSut(Mock<IUnitOfWork> uowMock)
+            => new DeviceService(uowMock.Object);
 
         [Fact]
-        public async Task RegisterOrUpdateAsync_AutoApproveTrue_NewDeviceIsApproved()
+        public async Task RegisterOrUpdateAsync_NewDeviceIsNotApproved()
         {
             // Arrange
             var uowMock = new Mock<IUnitOfWork>();
@@ -43,44 +31,16 @@ namespace BiometricPushServer.Tests
                 .Callback<BioDevice>(d => capturedDevice = d)
                 .Returns(Task.CompletedTask);
 
-            var sut = BuildSut(uowMock, autoApprove: true);
+            var sut = BuildSut(uowMock);
 
             // Act
             var dto = new DeviceRegistrationDto { SerialNumber = "SN001", DeviceName = "Device 1" };
             await sut.RegisterOrUpdateAsync(dto, "192.168.1.1");
 
-            // Assert — IsApproved must be true when AutoApproveDevices = true
-            Assert.NotNull(capturedDevice);
-            Assert.True(capturedDevice!.IsApproved,
-                "New device should be auto-approved when AutoApproveDevices=true");
-        }
-
-        [Fact]
-        public async Task RegisterOrUpdateAsync_AutoApproveFalse_NewDeviceNotApproved()
-        {
-            // Arrange
-            var uowMock = new Mock<IUnitOfWork>();
-            var deviceRepoMock = new Mock<IDeviceRepository>();
-            uowMock.Setup(u => u.Devices).Returns(deviceRepoMock.Object);
-            deviceRepoMock.Setup(r => r.GetBySerialNumberAsync("SN002"))
-                .ReturnsAsync((BioDevice?)null);
-            uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
-
-            BioDevice? capturedDevice = null;
-            deviceRepoMock.Setup(r => r.AddAsync(It.IsAny<BioDevice>()))
-                .Callback<BioDevice>(d => capturedDevice = d)
-                .Returns(Task.CompletedTask);
-
-            var sut = BuildSut(uowMock, autoApprove: false);
-
-            // Act
-            var dto = new DeviceRegistrationDto { SerialNumber = "SN002", DeviceName = "Device 2" };
-            await sut.RegisterOrUpdateAsync(dto, "10.0.0.1");
-
-            // Assert — IsApproved must be false when AutoApproveDevices=false
+            // Assert — new devices require explicit admin approval
             Assert.NotNull(capturedDevice);
             Assert.False(capturedDevice!.IsApproved,
-                "New device should NOT be auto-approved when AutoApproveDevices=false");
+                "New device should not be auto-approved");
         }
 
         [Fact]
@@ -103,7 +63,7 @@ namespace BiometricPushServer.Tests
                 .ReturnsAsync(existingDevice);
             deviceRepoMock.Setup(r => r.Update(It.IsAny<BioDevice>()));
 
-            var sut = BuildSut(uowMock, autoApprove: false);  // auto-approve off
+            var sut = BuildSut(uowMock);
 
             // Act
             var dto = new DeviceRegistrationDto { SerialNumber = "SN003", DeviceName = "Existing" };
@@ -116,9 +76,9 @@ namespace BiometricPushServer.Tests
         }
 
         [Fact]
-        public async Task RegisterOrUpdateAsync_DefaultConfig_AutoApproves()
+        public async Task RegisterOrUpdateAsync_ConfigKeyPresence_DoesNotAutoApprove()
         {
-            // Arrange — no AutoApproveDevices key in config (default should be true)
+            // Arrange
             var uowMock = new Mock<IUnitOfWork>();
             var deviceRepoMock = new Mock<IDeviceRepository>();
             uowMock.Setup(u => u.Devices).Returns(deviceRepoMock.Object);
@@ -131,20 +91,16 @@ namespace BiometricPushServer.Tests
                 .Callback<BioDevice>(d => capturedDevice = d)
                 .Returns(Task.CompletedTask);
 
-            // Empty config — key not present
-            var emptyConfig = new ConfigurationBuilder()
-                .AddInMemoryCollection(new System.Collections.Generic.Dictionary<string, string?>())
-                .Build();
-            var sut = new DeviceService(uowMock.Object, emptyConfig);
+            var sut = BuildSut(uowMock);
 
             // Act
             var dto = new DeviceRegistrationDto { SerialNumber = "SN004", DeviceName = "Default" };
             await sut.RegisterOrUpdateAsync(dto, "10.0.0.3");
 
-            // Assert — defaults to auto-approve when key is absent
+            // Assert — config key no longer influences registration approval
             Assert.NotNull(capturedDevice);
-            Assert.True(capturedDevice!.IsApproved,
-                "Should auto-approve by default when AutoApproveDevices config key is absent");
+            Assert.False(capturedDevice!.IsApproved,
+                "Device should remain unapproved until an admin approves it");
         }
     }
 }
