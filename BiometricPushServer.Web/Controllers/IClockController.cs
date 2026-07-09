@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Text.RegularExpressions;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Common.Extensions;
 using BiometricPushServer.Common.Constants;
@@ -331,9 +330,9 @@ namespace BiometricPushServer.Web.Controllers
                 return true;
             }
 
-            var whitespaceParts = Regex.Split(line, @"\s+")
-                .Where(part => !string.IsNullOrWhiteSpace(part))
-                .ToArray();
+            var whitespaceParts = line.Split(
+                (char[]?)null,
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             if (whitespaceParts.Length < 3 ||
                 !DateTime.TryParse($"{whitespaceParts[1]} {whitespaceParts[2]}", out punchTime))
