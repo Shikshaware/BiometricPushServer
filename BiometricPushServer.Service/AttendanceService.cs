@@ -156,5 +156,144 @@ namespace BiometricPushServer.Service
             var logs = await _uow.Attendance.GetByUserAsync(userCode, from, to, clientId);
             return logs.Select(MapToDto);
         }
+
+        public async Task<AttendanceReportDto> GetClientAttendanceReportAsync(
+            int clientId,
+            AttendanceReportPeriod period,
+            DateTime? referenceDate = null,
+            int? locationId = null)
+        {
+            if (clientId <= 0)
+            {
+                return new AttendanceReportDto();
+            }
+
+            var timeZoneId = await ResolveClientTimeZoneAsync(clientId);
+            var timeZone = ResolveTimeZone(timeZoneId);
+            var referenceUtc = NormalizeToUtc(referenceDate ?? DateTime.UtcNow);
+            var referenceLocal = TimeZoneInfo.ConvertTimeFromUtc(referenceUtc, timeZone);
+
+            var (rangeStartLocal, rangeEndLocalExclusive) = ResolveRange(period, referenceLocal);
+            var rangeStartUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(rangeStartLocal, DateTimeKind.Unspecified), timeZone);
+            var rangeEndUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(rangeEndLocalExclusive, DateTimeKind.Unspecified), timeZone);
+
+            var logs = await _uow.Attendance.FindAsync(a =>
+                a.ClientId == clientId &&
+                a.PunchTime >= rangeStartUtc &&
+                a.PunchTime < rangeEndUtc);
+
+            if (locationId.HasValue)
+            {
+                var locationDeviceIds = (await _uow.Devices.FindAsync(d =>
+                        d.LocationId == locationId &&
+                        d.ClientId == clientId))
+                    .Select(d => d.Id)
+                    .ToHashSet();
+
+                logs = logs.Where(a => a.DeviceId.HasValue && locationDeviceIds.Contains(a.DeviceId.Value));
+            }
+
+            var rows = logs
+                .Select(a => new
+                {
+                    a.UserCode,
+                    a.UserName,
+                    a.AttendanceState,
+                    LocalPunch = TimeZoneInfo.ConvertTimeFromUtc(NormalizeToUtc(a.PunchTime), timeZone)
+                })
+                .GroupBy(a => new { a.UserCode, a.UserName, LocalDate = a.LocalPunch.Date })
+                .Select(g =>
+                {
+                    var ordered = g.OrderBy(x => x.LocalPunch).ToList();
+                    var firstIn = ordered.FirstOrDefault(x => x.AttendanceState is 0 or 2)?.LocalPunch ?? ordered.First().LocalPunch;
+                    var lastOut = ordered.LastOrDefault(x => x.AttendanceState is 1 or 3)?.LocalPunch ?? ordered.Last().LocalPunch;
+
+                    return new AttendanceReportRowDto
+                    {
+                        Date = g.Key.LocalDate.ToString("yyyy-MM-dd"),
+                        UserCode = g.Key.UserCode,
+                        UserName = g.Key.UserName,
+                        FirstIn = firstIn.ToString("yyyy-MM-dd HH:mm:ss"),
+                        LastOut = lastOut.ToString("yyyy-MM-dd HH:mm:ss"),
+                        PunchCount = ordered.Count
+                    };
+                })
+                .OrderBy(r => r.Date)
+                .ThenBy(r => r.UserCode)
+                .ToList();
+
+            return new AttendanceReportDto
+            {
+                ClientId = clientId,
+                TimeZoneId = timeZone.Id,
+                Period = period.ToString().ToLowerInvariant(),
+                RangeStart = rangeStartLocal.ToString("yyyy-MM-dd HH:mm:ss"),
+                RangeEnd = rangeEndLocalExclusive.AddTicks(-1).ToString("yyyy-MM-dd HH:mm:ss"),
+                Rows = rows
+            };
+        }
+
+        private async Task<string> ResolveClientTimeZoneAsync(int clientId)
+        {
+            var portalUsers = await _uow.PortalUsers.FindAsync(u =>
+                u.ClientId == clientId &&
+                u.IsActive &&
+                !string.IsNullOrWhiteSpace(u.TimeZoneId));
+
+            var timeZone = portalUsers
+                .OrderByDescending(u => u.UpdatedOn ?? u.CreatedOn)
+                .Select(u => u.TimeZoneId)
+                .FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(timeZone))
+            {
+                return "UTC";
+            }
+
+            try
+            {
+                _ = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
+                return timeZone;
+            }
+            catch
+            {
+                return "UTC";
+            }
+        }
+
+        private static DateTime NormalizeToUtc(DateTime value)
+        {
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            };
+        }
+
+        private static TimeZoneInfo ResolveTimeZone(string timeZoneId)
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            }
+            catch
+            {
+                return TimeZoneInfo.Utc;
+            }
+        }
+
+        private static (DateTime startLocal, DateTime endLocalExclusive) ResolveRange(AttendanceReportPeriod period, DateTime referenceLocal)
+        {
+            var dayStart = referenceLocal.Date;
+            var weekOffset = ((int)dayStart.DayOfWeek + 6) % 7;
+            var weekStart = dayStart.AddDays(-weekOffset);
+            return period switch
+            {
+                AttendanceReportPeriod.Weekly => (weekStart, weekStart.AddDays(7)),
+                AttendanceReportPeriod.Monthly => (new DateTime(dayStart.Year, dayStart.Month, 1), new DateTime(dayStart.Year, dayStart.Month, 1).AddMonths(1)),
+                _ => (dayStart, dayStart.AddDays(1))
+            };
+        }
     }
 }

@@ -26,6 +26,7 @@ namespace BiometricPushServer.Service.Interfaces
         Task<IEnumerable<AttendanceLogDto>> GetTodayAsync(int? clientId = null, int? locationId = null);
         Task<IEnumerable<AttendanceLogDto>> GetByDeviceAsync(string deviceSN, System.DateTime from, System.DateTime to);
         Task<IEnumerable<AttendanceLogDto>> GetByUserAsync(string userCode, System.DateTime from, System.DateTime to, int? clientId = null);
+        Task<AttendanceReportDto> GetClientAttendanceReportAsync(int clientId, AttendanceReportPeriod period, System.DateTime? referenceDate = null, int? locationId = null);
     }
 
     public interface ICommandService

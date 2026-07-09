@@ -19,6 +19,7 @@ namespace BiometricPushServer.Tests
         private readonly Mock<IDeviceRepository> _deviceRepoMock;
         private readonly Mock<IAttendanceRepository> _attendanceRepoMock;
         private readonly Mock<IGenericRepository<BioUser>> _userRepoMock;
+        private readonly Mock<IGenericRepository<BioPortalUser>> _portalUserRepoMock;
         private readonly AttendanceService _sut;
 
         public AttendanceServiceTests()
@@ -27,16 +28,21 @@ namespace BiometricPushServer.Tests
             _deviceRepoMock = new Mock<IDeviceRepository>();
             _attendanceRepoMock = new Mock<IAttendanceRepository>();
             _userRepoMock = new Mock<IGenericRepository<BioUser>>();
+            _portalUserRepoMock = new Mock<IGenericRepository<BioPortalUser>>();
 
             _uowMock.Setup(u => u.Devices).Returns(_deviceRepoMock.Object);
             _uowMock.Setup(u => u.Attendance).Returns(_attendanceRepoMock.Object);
             _uowMock.Setup(u => u.Users).Returns(_userRepoMock.Object);
+            _uowMock.Setup(u => u.PortalUsers).Returns(_portalUserRepoMock.Object);
             _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
 
             // Default: no users found (UserName stays empty); individual tests may override this
             _userRepoMock
                 .Setup(r => r.FindAsync(It.IsAny<Expression<Func<BioUser, bool>>>()))
                 .ReturnsAsync(new List<BioUser>());
+            _portalUserRepoMock
+                .Setup(r => r.FindAsync(It.IsAny<Expression<Func<BioPortalUser, bool>>>()))
+                .ReturnsAsync(new List<BioPortalUser>());
 
             _sut = new AttendanceService(_uowMock.Object);
         }
@@ -226,6 +232,70 @@ namespace BiometricPushServer.Tests
             // Assert
             Assert.Single(result);
             Assert.Equal("U1", result[0].UserCode);
+        }
+
+        [Fact]
+        public async Task GetClientAttendanceReportAsync_UsesClientTimezoneAndComputesFirstInLastOut()
+        {
+            // Arrange
+            _portalUserRepoMock
+                .Setup(r => r.FindAsync(It.IsAny<Expression<Func<BioPortalUser, bool>>>()))
+                .ReturnsAsync(new List<BioPortalUser>
+                {
+                    new BioPortalUser { ClientId = 10, IsActive = true, TimeZoneId = "Asia/Kolkata", CreatedOn = DateTime.UtcNow }
+                });
+
+            _attendanceRepoMock
+                .Setup(r => r.FindAsync(It.IsAny<Expression<Func<BioAttendanceLog, bool>>>()))
+                .ReturnsAsync(new List<BioAttendanceLog>
+                {
+                    // 2026-07-03 local (Asia/Kolkata)
+                    new BioAttendanceLog { ClientId = 10, UserCode = "E001", UserName = "Alice", PunchTime = new DateTime(2026, 7, 3, 3, 30, 0, DateTimeKind.Utc), AttendanceState = 0 },
+                    new BioAttendanceLog { ClientId = 10, UserCode = "E001", UserName = "Alice", PunchTime = new DateTime(2026, 7, 3, 11, 30, 0, DateTimeKind.Utc), AttendanceState = 1 },
+                    // another user same day
+                    new BioAttendanceLog { ClientId = 10, UserCode = "E002", UserName = "Bob", PunchTime = new DateTime(2026, 7, 3, 4, 0, 0, DateTimeKind.Utc), AttendanceState = 0 },
+                    new BioAttendanceLog { ClientId = 10, UserCode = "E002", UserName = "Bob", PunchTime = new DateTime(2026, 7, 3, 12, 0, 0, DateTimeKind.Utc), AttendanceState = 1 }
+                });
+
+            // Act
+            var report = await _sut.GetClientAttendanceReportAsync(
+                clientId: 10,
+                period: AttendanceReportPeriod.Daily,
+                referenceDate: new DateTime(2026, 7, 3, 0, 0, 0, DateTimeKind.Utc));
+
+            // Assert
+            Assert.Equal("Asia/Kolkata", report.TimeZoneId);
+            Assert.Equal("daily", report.Period);
+            Assert.Equal(2, report.Rows.Count);
+
+            var alice = report.Rows.First(r => r.UserCode == "E001");
+            Assert.Equal("2026-07-03", alice.Date);
+            Assert.Equal("2026-07-03 09:00:00", alice.FirstIn);
+            Assert.Equal("2026-07-03 17:00:00", alice.LastOut);
+            Assert.Equal(2, alice.PunchCount);
+        }
+
+        [Fact]
+        public async Task GetClientAttendanceReportAsync_FallsBackToUtc_WhenTimezoneInvalid()
+        {
+            _portalUserRepoMock
+                .Setup(r => r.FindAsync(It.IsAny<Expression<Func<BioPortalUser, bool>>>()))
+                .ReturnsAsync(new List<BioPortalUser>
+                {
+                    new BioPortalUser { ClientId = 11, IsActive = true, TimeZoneId = "Invalid/Timezone" }
+                });
+
+            _attendanceRepoMock
+                .Setup(r => r.FindAsync(It.IsAny<Expression<Func<BioAttendanceLog, bool>>>()))
+                .ReturnsAsync(new List<BioAttendanceLog>());
+
+            var report = await _sut.GetClientAttendanceReportAsync(
+                clientId: 11,
+                period: AttendanceReportPeriod.Weekly,
+                referenceDate: new DateTime(2026, 7, 3, 0, 0, 0, DateTimeKind.Utc));
+
+            Assert.Equal("UTC", report.TimeZoneId);
+            Assert.Equal("weekly", report.Period);
         }
     }
 }

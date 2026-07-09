@@ -173,6 +173,7 @@ namespace BiometricPushServer.Web.Controllers
 
             owner.PasswordHash = _passwordHasher.HashPassword(owner, request.Password);
             owner.Role = AppConstants.Roles_Owner;
+            owner.TimeZoneId = NormalizeTimeZone(request.TimeZoneId, owner.TimeZoneId);
             owner.IsActive = true;
             owner.InviteToken = string.Empty;
             owner.InviteExpiresOn = null;
@@ -205,6 +206,7 @@ namespace BiometricPushServer.Web.Controllers
                     ClientId = request.ClientId,
                     Username = request.Username,
                     Role = AppConstants.Roles_Owner,
+                    TimeZoneId = NormalizeTimeZone(request.TimeZoneId, "UTC"),
                     IsActive = true,
                     InviteToken = token,
                     InviteExpiresOn = expiresOn,
@@ -214,6 +216,7 @@ namespace BiometricPushServer.Web.Controllers
             }
             else
             {
+                owner.TimeZoneId = NormalizeTimeZone(request.TimeZoneId, owner.TimeZoneId);
                 owner.InviteToken = token;
                 owner.InviteExpiresOn = expiresOn;
                 owner.UpdatedOn = DateTime.UtcNow;
@@ -222,6 +225,24 @@ namespace BiometricPushServer.Web.Controllers
 
             await _uow.SaveChangesAsync();
             return Ok(ApiResponse<object>.Ok(new { token, expiresOn }));
+        }
+
+        private static string NormalizeTimeZone(string? timeZoneId, string fallback)
+        {
+            if (string.IsNullOrWhiteSpace(timeZoneId))
+            {
+                return fallback;
+            }
+
+            try
+            {
+                _ = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+                return timeZoneId;
+            }
+            catch
+            {
+                return fallback;
+            }
         }
     }
 
@@ -236,6 +257,7 @@ namespace BiometricPushServer.Web.Controllers
     {
         public int ClientId { get; set; }
         public string Username { get; set; } = string.Empty;
+        public string? TimeZoneId { get; set; }
     }
 
     public class OwnerRegistrationRequest
@@ -244,5 +266,6 @@ namespace BiometricPushServer.Web.Controllers
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string InviteToken { get; set; } = string.Empty;
+        public string? TimeZoneId { get; set; }
     }
 }

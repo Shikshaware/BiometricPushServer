@@ -223,6 +223,7 @@ namespace BiometricPushServer.Data.EntityConfigurations
             builder.Property(x => x.Username).IsRequired().HasMaxLength(100);
             builder.Property(x => x.PasswordHash).HasMaxLength(500);
             builder.Property(x => x.Role).IsRequired().HasMaxLength(30);
+            builder.Property(x => x.TimeZoneId).IsRequired().HasMaxLength(100);
             builder.Property(x => x.InviteToken).HasMaxLength(200);
 
             builder.HasIndex(x => x.InviteToken).IsUnique();

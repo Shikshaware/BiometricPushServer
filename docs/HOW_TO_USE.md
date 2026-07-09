@@ -93,12 +93,22 @@ After login you are redirected to the **Dashboard** (`/Dashboard`).
 
 | URL | Description |
 |---|---|
-| `/Dashboard` | Live stats: total devices, online/offline count, today's punches, pending commands |
+| `/Dashboard` | Provider/client dashboard. Provider selects a client, then sees that client's live stats + attendance reporting |
 | `/Device` | List all registered devices |
 | `/Device/Details/{id}` | Device detail — approve, lock, unlock, restart, sync time, clear logs |
 | `/Attendance` | Paginated attendance log (all time) |
 | `/Attendance/Today` | Today's punches only |
 | `/User` | Registered users (paginated) |
+
+### Provider and client dashboards
+
+- **Provider users** (no `client_id` claim) land on a provider dashboard where they can select a client and open a client-scoped dashboard.
+- **Client users** (with `client_id` claim) are automatically restricted to their own client dashboard/report data.
+- Dashboard report section supports **Daily / Weekly / Monthly** attendance reporting with:
+  - First In
+  - Last Out
+  - Punch count
+- Reports are shown in UI and can be downloaded as **Excel (.xlsx)**.
 
 ### Filtering by client
 
@@ -199,7 +209,8 @@ Content-Type: application/json
 
 {
   "clientId": 5,
-  "username": "owner1"
+  "username": "owner1",
+  "timeZoneId": "Asia/Kolkata"
 }
 ```
 
@@ -213,7 +224,8 @@ Content-Type: application/json
   "clientId": 5,
   "username": "owner1",
   "password": "StrongPass!123",
-  "inviteToken": "<token>"
+  "inviteToken": "<token>",
+  "timeZoneId": "Asia/Kolkata"
 }
 ```
 
@@ -242,7 +254,11 @@ Approved devices that reconnect after being offline longer than the configured o
 | GET | `/api/attendance` | Paginated attendance (`?pageNumber=1&pageSize=50&clientId=&locationId=`) |
 | GET | `/api/attendance/today` | Today's punches (`?clientId=&locationId=`) |
 | GET | `/api/attendance/device/{deviceSN}` | Logs for a device (`?from=&to=`) |
+| GET | `/api/attendance/report` | Attendance report for `daily`, `weekly`, or `monthly` (`?period=&clientId=&referenceDate=&locationId=`) |
+| GET | `/api/attendance/report/export` | Download the report as `.xlsx` with first-in/last-out |
 | POST | `/api/attendance/push` | Push attendance from a device via REST (no auth required) |
+
+> Report aggregation and displayed/exported timestamps use the client timezone (`BioPortalUsers.TimeZoneId`) for day/week/month boundaries and first-in/last-out windows.
 
 **Push attendance via REST** (alternative to IClock for HTTP-capable devices):
 
