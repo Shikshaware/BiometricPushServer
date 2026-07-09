@@ -49,6 +49,7 @@ namespace BiometricPushServer.Web.Controllers
         /// POST /iclock/cdata?SN=xxx  → device pushes attendance records
         /// </summary>
         [HttpGet("cdata")]
+        [HttpGet("cdata.aspx")]
         public async Task<IActionResult> CDataGet([FromQuery] string SN)
         {
             if (string.IsNullOrWhiteSpace(SN))
@@ -87,6 +88,7 @@ namespace BiometricPushServer.Web.Controllers
         }
 
         [HttpPost("cdata")]
+        [HttpPost("cdata.aspx")]
         public async Task<IActionResult> CDataPost([FromQuery] string SN, [FromQuery] string? table)
         {
             if (string.IsNullOrWhiteSpace(SN))
@@ -136,6 +138,7 @@ namespace BiometricPushServer.Web.Controllers
         /// Device polls this endpoint to receive remote commands (restart, sync time, etc.)
         /// </summary>
         [HttpGet("getrequest")]
+        [HttpGet("getrequest.aspx")]
         public async Task<IActionResult> GetRequest([FromQuery] string SN)
         {
             if (string.IsNullOrWhiteSpace(SN))
@@ -164,6 +167,7 @@ namespace BiometricPushServer.Web.Controllers
         /// Device reports command execution result.
         /// </summary>
         [HttpPost("devicecmd")]
+        [HttpPost("devicecmd.aspx")]
         public async Task<IActionResult> DeviceCmd([FromQuery] string SN)
         {
             if (string.IsNullOrWhiteSpace(SN))

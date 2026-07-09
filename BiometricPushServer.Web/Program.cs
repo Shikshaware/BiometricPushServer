@@ -208,21 +208,6 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Dashboard}/{action=Index}/{id?}");
-// Add specific routes for the iClock controller to handle legacy device URLs
-app.MapControllerRoute(
-    name: "iclock-cdata",
-    pattern: "iclock/cdata.aspx",
-    defaults: new { controller = "IClock", action = "CData" });
-
-app.MapControllerRoute(
-    name: "iclock-getrequest",
-    pattern: "iclock/getrequest.aspx",
-    defaults: new { controller = "IClock", action = "GetRequest" });
-
-app.MapControllerRoute(
-    name: "iclock-devicecmd",
-    pattern: "iclock/devicecmd.aspx",
-    defaults: new { controller = "IClock", action = "DeviceCmd" }); ;
 // Auto-migrate on startup (development only; use explicit migration in production)
 if (app.Environment.IsDevelopment())
 {
