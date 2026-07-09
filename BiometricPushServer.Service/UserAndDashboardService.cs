@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BiometricPushServer.Common.Constants;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Domain;
 using BiometricPushServer.Repository.Interfaces;
 using BiometricPushServer.Service.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace BiometricPushServer.Service
 {
@@ -65,39 +67,67 @@ namespace BiometricPushServer.Service
             return true;
         }
 
-        public Task<PagedResult<UserDto>> GetAllAsync(int? clientId, int pageNumber, int pageSize)
+        public async Task<PagedResult<UserDto>> GetAllAsync(int? clientId, int pageNumber, int pageSize)
         {
             var query = _uow.Users.Query();
             if (clientId.HasValue) query = query.Where(u => u.ClientId == clientId);
 
-            var total = query.Count();
-            var items = ProjectUsers(query, pageNumber, pageSize);
+            var total = await query.CountAsync();
+            var items = await query
+                .OrderBy(u => u.Name)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(u => new UserDto
+                {
+                    Id = u.Id,
+                    UserCode = u.UserCode,
+                    Name = u.Name,
+                    CardNumber = u.CardNumber,
+                    Privilege = u.Privilege,
+                    IsEnabled = u.IsEnabled,
+                    DepartmentId = u.DepartmentId
+                })
+                .ToListAsync();
 
-            return Task.FromResult(new PagedResult<UserDto>
+            return new PagedResult<UserDto>
             {
                 Items = items,
                 TotalCount = total,
                 PageNumber = pageNumber,
                 PageSize = pageSize
-            });
+            };
         }
 
-        public Task<PagedResult<UserDto>> GetByDeviceAsync(int deviceId, int pageNumber, int pageSize)
+        public async Task<PagedResult<UserDto>> GetByDeviceAsync(int deviceId, int pageNumber, int pageSize)
         {
             var query = _uow.DeviceUserMaps.Query()
                 .Where(m => m.DeviceId == deviceId)
                 .Join(_uow.Users.Query(), m => m.UserId, u => u.Id, (_, u) => u);
 
-            var total = query.Count();
-            var items = ProjectUsers(query, pageNumber, pageSize);
+            var total = await query.CountAsync();
+            var items = await query
+                .OrderBy(u => u.Name)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(u => new UserDto
+                {
+                    Id = u.Id,
+                    UserCode = u.UserCode,
+                    Name = u.Name,
+                    CardNumber = u.CardNumber,
+                    Privilege = u.Privilege,
+                    IsEnabled = u.IsEnabled,
+                    DepartmentId = u.DepartmentId
+                })
+                .ToListAsync();
 
-            return Task.FromResult(new PagedResult<UserDto>
+            return new PagedResult<UserDto>
             {
                 Items = items,
                 TotalCount = total,
                 PageNumber = pageNumber,
                 PageSize = pageSize
-            });
+            };
         }
 
         public async Task AttachUserToDeviceAsync(int deviceId, int userId)
@@ -128,23 +158,6 @@ namespace BiometricPushServer.Service
 
         public async Task<bool> UserHasAnyDeviceMappingAsync(int userId) =>
             await _uow.DeviceUserMaps.AnyAsync(m => m.UserId == userId);
-
-        private static List<UserDto> ProjectUsers(IQueryable<BioUser> query, int pageNumber, int pageSize) =>
-            query
-                .OrderBy(u => u.Name)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Select(u => new UserDto
-                {
-                    Id = u.Id,
-                    UserCode = u.UserCode,
-                    Name = u.Name,
-                    CardNumber = u.CardNumber,
-                    Privilege = u.Privilege,
-                    IsEnabled = u.IsEnabled,
-                    DepartmentId = u.DepartmentId
-                })
-                .ToList();
     }
 
     public class DashboardService : IDashboardService
@@ -155,7 +168,7 @@ namespace BiometricPushServer.Service
 
         public async Task<DashboardStatsDto> GetStatsAsync(int? clientId = null)
         {
-            var onlineThreshold = DateTime.UtcNow.AddMinutes(-2);
+            var onlineThreshold = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes);
 
             var allDevices = await _uow.Devices.FindAsync(d =>
                 clientId == null || d.ClientId == clientId);

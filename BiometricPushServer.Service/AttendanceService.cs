@@ -7,6 +7,7 @@ using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Domain;
 using BiometricPushServer.Repository.Interfaces;
 using BiometricPushServer.Service.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace BiometricPushServer.Service
 {
@@ -25,20 +26,35 @@ namespace BiometricPushServer.Service
             if (device == null || !device.IsApproved)
                 return (0, 0);
 
+            var effectiveClientId = clientId ?? device.ClientId;
+
+            // Pre-fetch users so we can populate UserName without an extra query per record
+            var recordList = records.ToList();
+            var userCodes = recordList.Select(r => r.UserCode).Distinct().ToList();
+            var users = userCodes.Count > 0
+                ? await _uow.Users.FindAsync(u =>
+                    userCodes.Contains(u.UserCode) &&
+                    (effectiveClientId == null || u.ClientId == effectiveClientId))
+                : Enumerable.Empty<BioUser>();
+            var userNameMap = users.ToDictionary(u => u.UserCode, u => u.Name, StringComparer.OrdinalIgnoreCase);
+
             int saved = 0, duplicates = 0;
 
-            foreach (var rec in records)
+            foreach (var rec in recordList)
             {
                 bool isDuplicate = await _uow.Attendance.IsDuplicateAsync(
                     deviceSN, rec.UserCode, rec.PunchTime,
                     AppConstants.DuplicateWindowSeconds);
 
+                userNameMap.TryGetValue(rec.UserCode, out var userName);
+
                 var log = new BioAttendanceLog
                 {
-                    ClientId = clientId ?? device.ClientId,
+                    ClientId = effectiveClientId,
                     DeviceId = device.Id,
                     DeviceSN = deviceSN,
                     UserCode = rec.UserCode,
+                    UserName = userName ?? string.Empty,
                     PunchTime = rec.PunchTime,
                     AttendanceState = rec.AttendanceState,
                     VerifyMode = rec.VerifyMode,
@@ -73,13 +89,13 @@ namespace BiometricPushServer.Service
             if (from.HasValue) query = query.Where(a => a.PunchTime >= from.Value);
             if (to.HasValue) query = query.Where(a => a.PunchTime <= to.Value);
 
-            var total = query.Count();
-            var items = query
+            var total = await query.CountAsync();
+            var items = await query
                 .OrderByDescending(a => a.PunchTime)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .Select(a => MapToDto(a))
-                .ToList();
+                .ToListAsync();
 
             return new PagedResult<AttendanceLogDto>
             {

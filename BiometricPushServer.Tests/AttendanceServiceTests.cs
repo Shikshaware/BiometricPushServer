@@ -18,6 +18,7 @@ namespace BiometricPushServer.Tests
         private readonly Mock<IUnitOfWork> _uowMock;
         private readonly Mock<IDeviceRepository> _deviceRepoMock;
         private readonly Mock<IAttendanceRepository> _attendanceRepoMock;
+        private readonly Mock<IGenericRepository<BioUser>> _userRepoMock;
         private readonly AttendanceService _sut;
 
         public AttendanceServiceTests()
@@ -25,10 +26,17 @@ namespace BiometricPushServer.Tests
             _uowMock = new Mock<IUnitOfWork>();
             _deviceRepoMock = new Mock<IDeviceRepository>();
             _attendanceRepoMock = new Mock<IAttendanceRepository>();
+            _userRepoMock = new Mock<IGenericRepository<BioUser>>();
 
             _uowMock.Setup(u => u.Devices).Returns(_deviceRepoMock.Object);
             _uowMock.Setup(u => u.Attendance).Returns(_attendanceRepoMock.Object);
+            _uowMock.Setup(u => u.Users).Returns(_userRepoMock.Object);
             _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+            // Default: no users found (UserName stays empty); individual tests may override this
+            _userRepoMock
+                .Setup(r => r.FindAsync(It.IsAny<Expression<Func<BioUser, bool>>>()))
+                .ReturnsAsync(new List<BioUser>());
 
             _sut = new AttendanceService(_uowMock.Object);
         }

@@ -166,6 +166,7 @@ namespace BiometricPushServer.Service
             Location = d.Location,
             IsApproved = d.IsApproved,
             IsActive = d.IsActive,
+            IsLocked = d.IsLocked,
             IsOnline = d.LastHeartbeatOn >= onlineThreshold,
             LastConnectedOn = d.LastConnectedOn,
             LastHeartbeatOn = d.LastHeartbeatOn

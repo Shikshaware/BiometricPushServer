@@ -49,6 +49,17 @@
                     </dd>
                     <dt class="col-sm-5">Active</dt>
                     <dd class="col-sm-7">@(Model.IsActive ? "Yes" : "No")</dd>
+                    <dt class="col-sm-5">Locked</dt>
+                    <dd class="col-sm-7">
+                        @if (Model.IsLocked)
+                        {
+                            <span class="badge bg-danger">Locked</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Unlocked</span>
+                        }
+                    </dd>
                     <dt class="col-sm-5">Last Heartbeat</dt>
                     <dd class="col-sm-7">@(Model.LastHeartbeatOn?.ToString("dd-MMM-yyyy HH:mm:ss") ?? "-")</dd>
                     <dt class="col-sm-5">Last Connected</dt>
@@ -74,14 +85,14 @@
 
                 <form method="post" asp-action="Lock" asp-route-id="@Model.Id">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-warning w-100">
+                    <button type="submit" class="btn btn-warning w-100" @(Model.IsLocked ? "disabled" : string.Empty)>
                         <i class="bi bi-lock"></i> Lock Device
                     </button>
                 </form>
 
                 <form method="post" asp-action="Unlock" asp-route-id="@Model.Id">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-outline-success w-100">
+                    <button type="submit" class="btn btn-outline-success w-100" @(!Model.IsLocked ? "disabled" : string.Empty)>
                         <i class="bi bi-unlock"></i> Unlock Device
                     </button>
                 </form>

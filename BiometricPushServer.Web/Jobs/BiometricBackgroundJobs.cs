@@ -39,17 +39,31 @@ namespace BiometricPushServer.Web.Jobs
         }
 
         /// <summary>
-        /// Mark commands that have exceeded their retry limit as permanently failed.
+        /// Mark commands that have exceeded their retry limit or have been sent but never
+        /// acknowledged within the expiry window as permanently failed.
         /// </summary>
         [AutomaticRetry(Attempts = 0)]
         public async Task ExpireStaleCommandsAsync()
         {
             _logger.LogDebug("Expiring stale commands...");
+
+            // Commands that were never sent but have been retried too many times
             var pending = await _commandService.GetAllPendingAsync();
             foreach (var cmd in pending)
             {
                 if (cmd.RetryCount >= 3)
                     await _commandService.MarkFailedAsync(cmd.Id, "Max retry count exceeded");
+            }
+
+            // Commands that were sent to the device but never acknowledged (executed/failed)
+            // and whose expiry window has elapsed
+            var sentExpired = await _commandService.GetSentExpiredAsync();
+            foreach (var cmd in sentExpired)
+            {
+                _logger.LogWarning(
+                    "Command {Id} (SN={SN} Type={Type}) sent but never acknowledged; marking failed",
+                    cmd.Id, cmd.DeviceSN, cmd.CommandType);
+                await _commandService.MarkFailedAsync(cmd.Id, "Command sent but device did not acknowledge within expiry window");
             }
         }
 
