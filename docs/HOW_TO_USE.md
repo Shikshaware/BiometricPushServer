@@ -197,6 +197,8 @@ Authorization: ******
 | POST | `/api/device/{id}/clearattendance` | Queue CLEAR ATT LOG command |
 | POST | `/api/device/{id}/clearusers` | Queue CLEAR DATA command |
 
+Approved devices that reconnect after being offline longer than the configured offline threshold are also automatically queued for a full `DATA QUERY ATTLOG` sync, unless the same sync command is already pending.
+
 ### 4.3 Attendance
 
 | Method | Endpoint | Description |
