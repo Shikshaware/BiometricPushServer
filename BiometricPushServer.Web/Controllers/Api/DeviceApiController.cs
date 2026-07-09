@@ -56,7 +56,7 @@ namespace BiometricPushServer.Web.Controllers.Api
 
             var result = await _deviceService.UpdateDeviceAsync(id, dto);
             return result == null
-                ? NotFound(ApiResponse<object>.Fail("Device not found", 404))
+                ? BadRequest(ApiResponse<object>.Fail("Update failed: device not found, invalid location, or client/location mismatch"))
                 : Ok(ApiResponse<object>.Ok(result));
         }
 

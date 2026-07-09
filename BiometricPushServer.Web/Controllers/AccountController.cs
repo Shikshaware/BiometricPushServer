@@ -106,7 +106,7 @@ namespace BiometricPushServer.Web.Controllers
         /// POST /api/auth/token
         /// </summary>
         [HttpPost("/api/auth/token")]
-        [IgnoreAntiforgeryToken]  // REST endpoint — uses credentials in body, not cookies
+        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> Token([FromBody] LoginRequest request)
         {
             var adminUser = _config["Auth:AdminUsername"] ?? "admin";
@@ -155,21 +155,21 @@ namespace BiometricPushServer.Web.Controllers
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> RegisterOwner([FromBody] OwnerRegistrationRequest request)
         {
-            if (request.ClientId <= 0 || string.IsNullOrWhiteSpace(request.Username) ||
-                string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.InviteToken))
+            if (string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.InviteToken))
             {
-                return BadRequest(ApiResponse<object>.Fail("ClientId, username, password and invite token are required"));
+                return BadRequest(ApiResponse<object>.Fail("Password and invite token are required"));
             }
 
             var owner = await _uow.PortalUsers.FirstOrDefaultAsync(u =>
-                u.ClientId == request.ClientId &&
-                u.Username == request.Username &&
                 u.InviteToken == request.InviteToken &&
                 u.InviteExpiresOn != null &&
                 u.InviteExpiresOn > DateTime.UtcNow);
 
             if (owner == null)
                 return Unauthorized(ApiResponse<object>.Fail("Invalid or expired invite token", 401));
+
+            if (owner.ClientId != request.ClientId || !string.Equals(owner.Username, request.Username, StringComparison.Ordinal))
+                return Unauthorized(ApiResponse<object>.Fail("Invite token does not match client/user", 401));
 
             owner.PasswordHash = _passwordHasher.HashPassword(owner, request.Password);
             owner.Role = AppConstants.Roles_Owner;
@@ -185,7 +185,7 @@ namespace BiometricPushServer.Web.Controllers
 
         [HttpPost("/api/auth/create-owner-invite")]
         [Authorize(Roles = AppConstants.Roles_Admin)]
-        [IgnoreAntiforgeryToken]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateOwnerInvite([FromBody] OwnerInviteRequest request)
         {
             if (request.ClientId <= 0 || string.IsNullOrWhiteSpace(request.Username))
