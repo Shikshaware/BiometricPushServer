@@ -85,14 +85,14 @@
 
                 <form method="post" asp-action="Lock" asp-route-id="@Model.Id">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-warning w-100" @(Model.IsLocked ? "disabled" : string.Empty)>
+                    <button type="submit" class="btn btn-warning w-100" disabled="@(Model.IsLocked ? "disabled" : null)">
                         <i class="bi bi-lock"></i> Lock Device
                     </button>
                 </form>
 
                 <form method="post" asp-action="Unlock" asp-route-id="@Model.Id">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-outline-success w-100" @(!Model.IsLocked ? "disabled" : string.Empty)>
+                    <button type="submit" class="btn btn-outline-success w-100" disabled="@(!Model.IsLocked ? "disabled" : null)">
                         <i class="bi bi-unlock"></i> Unlock Device
                     </button>
                 </form>
