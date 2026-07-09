@@ -112,6 +112,13 @@
                     </button>
                 </form>
 
+                <form method="post" asp-action="SyncUsers" asp-route-id="@Model.Id">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-people"></i> Sync Users from Device
+                    </button>
+                </form>
+
                 <form method="post" asp-action="SyncAttendanceLogs" asp-route-id="@Model.Id">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-outline-secondary w-100">

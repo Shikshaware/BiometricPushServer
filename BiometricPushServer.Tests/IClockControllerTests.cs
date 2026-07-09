@@ -23,11 +23,13 @@ namespace BiometricPushServer.Tests
         private IClockController BuildController(
             Mock<IDeviceService>? deviceSvcMock = null,
             Mock<IAttendanceService>? attendanceSvcMock = null,
-            Mock<ICommandService>? commandSvcMock = null)
+            Mock<ICommandService>? commandSvcMock = null,
+            Mock<IUserService>? userSvcMock = null)
         {
             deviceSvcMock ??= new Mock<IDeviceService>();
             attendanceSvcMock ??= new Mock<IAttendanceService>();
             commandSvcMock ??= new Mock<ICommandService>();
+            userSvcMock ??= new Mock<IUserService>();
             var hubMock = new Mock<IHubContext<BiometricPushServer.Web.Hubs.AttendanceHub>>();
             var hubClientsMock = new Mock<IHubClients>();
             var clientProxyMock = new Mock<IClientProxy>();
@@ -40,6 +42,7 @@ namespace BiometricPushServer.Tests
                 deviceSvcMock.Object,
                 attendanceSvcMock.Object,
                 commandSvcMock.Object,
+                userSvcMock.Object,
                 hubMock.Object,
                 loggerMock.Object);
 
@@ -498,8 +501,84 @@ namespace BiometricPushServer.Tests
             }, Times.Never());
         }
 
-        private async Task AssertAutomaticSyncQueuedAsync(BioDevice device, Times expectedTimes)
+        [Fact]
+        public async Task CDataPost_UserInfoTable_UpsertsParsedUsersAndAttachesThemToDevice()
         {
+            // Arrange
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var userSvcMock = new Mock<IUserService>();
+
+            var device = new BioDevice
+            {
+                Id = 5,
+                SerialNumber = "SN_U",
+                ClientId = 2,
+                IsApproved = true
+            };
+
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_U")).ReturnsAsync(device);
+            deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+
+            // Return a BioUser for each upsert call
+            userSvcMock.Setup(s => s.UpsertAsync(It.Is<UserDto>(u => u.UserCode == "1")))
+                .ReturnsAsync(new BioUser { Id = 101, UserCode = "1" });
+            userSvcMock.Setup(s => s.UpsertAsync(It.Is<UserDto>(u => u.UserCode == "2")))
+                .ReturnsAsync(new BioUser { Id = 102, UserCode = "2" });
+            userSvcMock.Setup(s => s.AttachUserToDeviceAsync(It.IsAny<int>(), It.IsAny<int>()))
+                .Returns(Task.CompletedTask);
+
+            var controller = BuildController(deviceSvcMock, userSvcMock: userSvcMock);
+
+            var body = "PIN=1\tName=Alice\tPri=0\tPasswd=\tCard=11111\tGrp=1\r\n" +
+                       "PIN=2\tName=Bob\tPri=14\tPasswd=\tCard=22222\tGrp=1\r\n";
+            SetRequestBody(controller, body);
+
+            // Act
+            var result = await controller.CDataPost("SN_U", table: "USERINFO");
+
+            // Assert — both users upserted and mapped to device
+            Assert.IsType<ContentResult>(result);
+            Assert.Equal("OK", ((ContentResult)result).Content);
+
+            userSvcMock.Verify(s => s.UpsertAsync(It.Is<UserDto>(u =>
+                u.UserCode == "1" && u.Name == "Alice" && u.CardNumber == "11111" && u.ClientId == 2)),
+                Times.Once);
+            userSvcMock.Verify(s => s.UpsertAsync(It.Is<UserDto>(u =>
+                u.UserCode == "2" && u.Name == "Bob" && u.Privilege == 14 && u.ClientId == 2)),
+                Times.Once);
+            userSvcMock.Verify(s => s.AttachUserToDeviceAsync(5, 101), Times.Once);
+            userSvcMock.Verify(s => s.AttachUserToDeviceAsync(5, 102), Times.Once);
+        }
+
+        [Fact]
+        public async Task CDataPost_UserInfoTable_SkipsPreambleLineAndInvalidLines()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var userSvcMock = new Mock<IUserService>();
+
+            var device = new BioDevice { Id = 3, SerialNumber = "SN_U2", ClientId = 1, IsApproved = true };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_U2")).ReturnsAsync(device);
+            deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+            userSvcMock.Setup(s => s.UpsertAsync(It.IsAny<UserDto>()))
+                .ReturnsAsync(new BioUser { Id = 200, UserCode = "42" });
+            userSvcMock.Setup(s => s.AttachUserToDeviceAsync(It.IsAny<int>(), It.IsAny<int>()))
+                .Returns(Task.CompletedTask);
+
+            var controller = BuildController(deviceSvcMock, userSvcMock: userSvcMock);
+
+            // body has preamble and one line with no PIN
+            var body = "table=USERINFO\r\nno-pin-field=something\r\nPIN=42\tName=Charlie\r\n";
+            SetRequestBody(controller, body);
+
+            await controller.CDataPost("SN_U2", table: "USERINFO");
+
+            // Only the valid PIN=42 line should have triggered an upsert
+            userSvcMock.Verify(s => s.UpsertAsync(It.IsAny<UserDto>()), Times.Once);
+        }
+
+        private async Task AssertAutomaticSyncQueuedAsync(BioDevice device, Times expectedTimes)        {
             var deviceSvcMock = new Mock<IDeviceService>();
             var attendanceSvcMock = new Mock<IAttendanceService>();
             var commandSvcMock = new Mock<ICommandService>();
