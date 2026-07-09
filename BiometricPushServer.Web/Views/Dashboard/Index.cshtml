@@ -1,117 +1,266 @@
 @{
     Layout = "_Layout";
     ViewData["Title"] = "Dashboard";
+    var isProviderView = (bool?)ViewBag.IsProviderView ?? false;
+    var selectedClientId = (int?)ViewBag.SelectedClientId;
+    var clientTimeZoneId = (string?)ViewBag.ClientTimeZoneId ?? "UTC";
+    var clients = (IEnumerable<BiometricPushServer.Common.DTOs.ClientDashboardOptionDto>?)ViewBag.Clients
+        ?? Enumerable.Empty<BiometricPushServer.Common.DTOs.ClientDashboardOptionDto>();
 }
 @model BiometricPushServer.Common.DTOs.DashboardStatsDto
 
 <h3 class="mb-4"><i class="bi bi-speedometer2"></i> Live Dashboard</h3>
 
-<!-- Stat cards -->
-<div class="row g-3 mb-4">
-    <div class="col-md-2">
-        <div class="card card-stat border-primary text-center p-3">
-            <div class="fs-2 fw-bold text-primary">@Model.TotalDevices</div>
-            <small>Total Devices</small>
+@if (isProviderView)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="get" asp-action="Index" class="row g-2 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">Client</label>
+                    <select class="form-select" name="clientId" required>
+                        <option value="">Select client...</option>
+                        @foreach (var client in clients)
+                        {
+                            @if (selectedClientId == client.ClientId)
+                            {
+                                <option value="@client.ClientId" selected>
+                                    @client.DisplayName (@client.ClientId) — @client.TimeZoneId
+                                </option>
+                            }
+                            else
+                            {
+                                <option value="@client.ClientId">
+                                    @client.DisplayName (@client.ClientId) — @client.TimeZoneId
+                                </option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-arrow-right-circle"></i> Open Dashboard
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
-    <div class="col-md-2">
-        <div class="card card-stat border-success text-center p-3">
-            <div class="fs-2 fw-bold text-success">@Model.OnlineDevices</div>
-            <small>Online</small>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="card card-stat border-danger text-center p-3">
-            <div class="fs-2 fw-bold text-danger">@Model.OfflineDevices</div>
-            <small>Offline</small>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="card card-stat border-info text-center p-3">
-            <div class="fs-2 fw-bold text-info" id="todayCount">@Model.TodayAttendance</div>
-            <small>Today's Punches</small>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="card card-stat border-warning text-center p-3">
-            <div class="fs-2 fw-bold text-warning">@Model.TotalUsers</div>
-            <small>Users</small>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="card card-stat border-secondary text-center p-3">
-            <div class="fs-2 fw-bold text-secondary">@Model.PendingCommands</div>
-            <small>Pending Cmds</small>
-        </div>
-    </div>
-</div>
 
-<!-- Live feed -->
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-broadcast"></i> Live Attendance Feed</span>
-        <span id="hubStatus" class="badge bg-warning">Connecting...</span>
+    @if (!selectedClientId.HasValue)
+    {
+        <div class="alert alert-info">Select a client to view the client-specific dashboard and attendance reports.</div>
+    }
+}
+
+@if (!isProviderView || selectedClientId.HasValue)
+{
+    <div class="alert alert-secondary">
+        <strong>Client Timezone:</strong> @clientTimeZoneId
     </div>
-    <div class="card-body p-0">
-        <table class="table table-hover mb-0" id="attTable">
-            <thead class="table-dark">
-                <tr>
-                    <th>Time</th><th>User</th><th>Device</th>
-                    <th>State</th><th>Method</th><th>Duplicate</th>
-                </tr>
-            </thead>
-            <tbody id="attBody">
-                @foreach (var log in Model.RecentPunches)
-                {
+
+    <!-- Stat cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-2">
+            <div class="card card-stat border-primary text-center p-3">
+                <div class="fs-2 fw-bold text-primary">@Model.TotalDevices</div>
+                <small>Total Devices</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card card-stat border-success text-center p-3">
+                <div class="fs-2 fw-bold text-success">@Model.OnlineDevices</div>
+                <small>Online</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card card-stat border-danger text-center p-3">
+                <div class="fs-2 fw-bold text-danger">@Model.OfflineDevices</div>
+                <small>Offline</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card card-stat border-info text-center p-3">
+                <div class="fs-2 fw-bold text-info" id="todayCount">@Model.TodayAttendance</div>
+                <small>Today's Punches</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card card-stat border-warning text-center p-3">
+                <div class="fs-2 fw-bold text-warning">@Model.TotalUsers</div>
+                <small>Users</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card card-stat border-secondary text-center p-3">
+                <div class="fs-2 fw-bold text-secondary">@Model.PendingCommands</div>
+                <small>Pending Cmds</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-table"></i> Attendance Report</span>
+            <span class="small text-muted">Daily / Weekly / Monthly</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-2 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">Period</label>
+                    <select id="reportPeriod" class="form-select">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Reference Date</label>
+                    <input id="reportDate" type="date" class="form-control" value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-6 d-flex align-items-end gap-2">
+                    <button id="loadReportBtn" type="button" class="btn btn-primary">
+                        <i class="bi bi-search"></i> View
+                    </button>
+                    <button id="downloadReportBtn" type="button" class="btn btn-success">
+                        <i class="bi bi-file-earmark-excel"></i> Download Excel
+                    </button>
+                </div>
+            </div>
+            <div id="reportMeta" class="small text-muted mb-2"></div>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>User</th>
+                            <th>First In</th>
+                            <th>Last Out</th>
+                            <th>Punch Count</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportBody">
+                        <tr><td colspan="5" class="text-muted">No report loaded.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live feed -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-broadcast"></i> Live Attendance Feed</span>
+            <span id="hubStatus" class="badge bg-warning">Connecting...</span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0" id="attTable">
+                <thead class="table-dark">
                     <tr>
-                        <td>@log.PunchTime.ToString("HH:mm:ss")</td>
-                        <td>@log.UserCode @(string.IsNullOrEmpty(log.UserName) ? "" : $"({log.UserName})")</td>
-                        <td>@log.DeviceSN</td>
-                        <td>@log.AttendanceState</td>
-                        <td>@log.VerifyMode</td>
-                        <td>@(log.IsDuplicate ? "⚠" : "")</td>
+                        <th>Time</th><th>User</th><th>Device</th>
+                        <th>State</th><th>Method</th><th>Duplicate</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody id="attBody">
+                    @foreach (var log in Model.RecentPunches)
+                    {
+                        <tr>
+                            <td>@log.PunchTime.ToString("HH:mm:ss")</td>
+                            <td>@log.UserCode @(string.IsNullOrEmpty(log.UserName) ? "" : $"({log.UserName})")</td>
+                            <td>@log.DeviceSN</td>
+                            <td>@log.AttendanceState</td>
+                            <td>@log.VerifyMode</td>
+                            <td>@(log.IsDuplicate ? "⚠" : "")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
+}
 
 @section Scripts {
 <script>
-    const connection = new signalR.HubConnectionBuilder()
-        .withUrl("/hubs/attendance")
-        .withAutomaticReconnect()
-        .build();
+    const selectedClientId = '@(selectedClientId?.ToString() ?? string.Empty)';
 
-    connection.on("AttendanceUpdated", function (logs) {
-        const tbody = document.getElementById("attBody");
-        tbody.innerHTML = "";
-        let count = 0;
-        logs.slice(0, 20).forEach(function (log) {
-            const row = `<tr>
-                <td>${new Date(log.punchTime).toLocaleTimeString()}</td>
-                <td>${log.userCode} ${log.userName ? '(' + log.userName + ')' : ''}</td>
-                <td>${log.deviceSN}</td>
-                <td>${log.attendanceState}</td>
-                <td>${log.verifyMode}</td>
-                <td>${log.isDuplicate ? '⚠' : ''}</td>
-            </tr>`;
-            tbody.insertAdjacentHTML('afterbegin', row);
-            count++;
+    async function loadReport() {
+        if (!selectedClientId) return;
+        const period = document.getElementById("reportPeriod").value;
+        const referenceDate = document.getElementById("reportDate").value;
+        const response = await fetch(`/api/attendance/report?clientId=${encodeURIComponent(selectedClientId)}&period=${encodeURIComponent(period)}&referenceDate=${encodeURIComponent(referenceDate)}`);
+        const payload = await response.json();
+        if (!payload.success) {
+            document.getElementById("reportBody").innerHTML = `<tr><td colspan="5" class="text-danger">${payload.message || 'Failed to load report'}</td></tr>`;
+            return;
+        }
+
+        const report = payload.data;
+        document.getElementById("reportMeta").textContent = `Range: ${report.rangeStart} to ${report.rangeEnd} (${report.timeZoneId})`;
+        if (!report.rows || report.rows.length === 0) {
+            document.getElementById("reportBody").innerHTML = '<tr><td colspan="5" class="text-muted">No records found for this period.</td></tr>';
+            return;
+        }
+
+        document.getElementById("reportBody").innerHTML = report.rows.map(r =>
+            `<tr>
+                <td>${r.date}</td>
+                <td>${r.userCode} ${r.userName ? '(' + r.userName + ')' : ''}</td>
+                <td>${r.firstIn}</td>
+                <td>${r.lastOut}</td>
+                <td>${r.punchCount}</td>
+            </tr>`
+        ).join('');
+    }
+
+    const loadReportBtn = document.getElementById("loadReportBtn");
+    if (loadReportBtn) {
+        loadReportBtn.addEventListener("click", loadReport);
+        loadReport();
+    }
+
+    const downloadReportBtn = document.getElementById("downloadReportBtn");
+    if (downloadReportBtn) {
+        downloadReportBtn.addEventListener("click", function () {
+            const period = document.getElementById("reportPeriod").value;
+            const referenceDate = document.getElementById("reportDate").value;
+            window.location.href = `/api/attendance/report/export?clientId=${encodeURIComponent(selectedClientId)}&period=${encodeURIComponent(period)}&referenceDate=${encodeURIComponent(referenceDate)}`;
         });
-        document.getElementById("todayCount").textContent = logs.length;
-    });
+    }
 
-    connection.on("Connected", function () {
-        document.getElementById("hubStatus").textContent = "Live";
-        document.getElementById("hubStatus").className = "badge bg-success";
-    });
+    if (selectedClientId) {
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/attendance")
+            .withAutomaticReconnect()
+            .build();
 
-    connection.start().catch(function (err) {
-        console.error(err.toString());
-        document.getElementById("hubStatus").textContent = "Offline";
-        document.getElementById("hubStatus").className = "badge bg-danger";
-    });
+        connection.on("AttendanceUpdated", function (logs) {
+            const tbody = document.getElementById("attBody");
+            tbody.innerHTML = "";
+            let count = 0;
+            logs.slice(0, 20).forEach(function (log) {
+                const row = `<tr>
+                    <td>${new Date(log.punchTime).toLocaleTimeString()}</td>
+                    <td>${log.userCode} ${log.userName ? '(' + log.userName + ')' : ''}</td>
+                    <td>${log.deviceSN}</td>
+                    <td>${log.attendanceState}</td>
+                    <td>${log.verifyMode}</td>
+                    <td>${log.isDuplicate ? '⚠' : ''}</td>
+                </tr>`;
+                tbody.insertAdjacentHTML('afterbegin', row);
+                count++;
+            });
+            document.getElementById("todayCount").textContent = logs.length;
+        });
+
+        connection.on("Connected", function () {
+            document.getElementById("hubStatus").textContent = "Live";
+            document.getElementById("hubStatus").className = "badge bg-success";
+        });
+
+        connection.start().catch(function (err) {
+            console.error(err.toString());
+            document.getElementById("hubStatus").textContent = "Offline";
+            document.getElementById("hubStatus").className = "badge bg-danger";
+        });
+    }
 </script>
 }

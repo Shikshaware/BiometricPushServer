@@ -3,6 +3,20 @@ using System.Collections.Generic;
 
 namespace BiometricPushServer.Common.DTOs
 {
+    public enum AttendanceReportPeriod
+    {
+        Daily = 0,
+        Weekly = 1,
+        Monthly = 2
+    }
+
+    public class ClientDashboardOptionDto
+    {
+        public int ClientId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public string TimeZoneId { get; set; } = "UTC";
+    }
+
     public class DeviceRegistrationDto
     {
         public string SerialNumber { get; set; } = string.Empty;
@@ -58,6 +72,26 @@ namespace BiometricPushServer.Common.DTOs
         public int VerifyMode { get; set; }
         public bool IsDuplicate { get; set; }
         public DateTime CreatedOn { get; set; }
+    }
+
+    public class AttendanceReportRowDto
+    {
+        public string Date { get; set; } = string.Empty;
+        public string UserCode { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public string FirstIn { get; set; } = string.Empty;
+        public string LastOut { get; set; } = string.Empty;
+        public int PunchCount { get; set; }
+    }
+
+    public class AttendanceReportDto
+    {
+        public int ClientId { get; set; }
+        public string TimeZoneId { get; set; } = "UTC";
+        public string Period { get; set; } = "daily";
+        public string RangeStart { get; set; } = string.Empty;
+        public string RangeEnd { get; set; } = string.Empty;
+        public List<AttendanceReportRowDto> Rows { get; set; } = new List<AttendanceReportRowDto>();
     }
 
     public class UserDto

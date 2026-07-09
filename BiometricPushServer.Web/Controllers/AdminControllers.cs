@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using BiometricPushServer.Common.Constants;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Domain;
+using BiometricPushServer.Repository.Interfaces;
 using BiometricPushServer.Service.Interfaces;
 using BiometricPushServer.Web.Helpers;
 using Microsoft.AspNetCore.Authorization;
@@ -14,17 +15,101 @@ namespace BiometricPushServer.Web.Controllers
     public class DashboardController : Controller
     {
         private readonly IDashboardService _dashboardService;
+        private readonly IUnitOfWork _uow;
 
-        public DashboardController(IDashboardService dashboardService)
+        public DashboardController(IDashboardService dashboardService, IUnitOfWork uow)
         {
             _dashboardService = dashboardService;
+            _uow = uow;
         }
 
         public async Task<IActionResult> Index([FromQuery] int? clientId, [FromQuery] int? locationId)
         {
             var scopedClientId = User.ResolveClientId(clientId);
+            var claimClientId = User.GetClientIdClaim();
+            var isProviderView = !claimClientId.HasValue;
+            var clients = await GetClientOptionsAsync();
+
+            ViewBag.IsProviderView = isProviderView;
+            ViewBag.Clients = clients;
+            ViewBag.SelectedClientId = scopedClientId;
+
+            if (scopedClientId.HasValue)
+            {
+                ViewBag.ClientTimeZoneId = clients.FirstOrDefault(c => c.ClientId == scopedClientId.Value)?.TimeZoneId ?? "UTC";
+            }
+            else
+            {
+                ViewBag.ClientTimeZoneId = "UTC";
+            }
+
+            if (isProviderView && !scopedClientId.HasValue)
+            {
+                return View(new DashboardStatsDto());
+            }
+
             var stats = await _dashboardService.GetStatsAsync(scopedClientId, locationId);
             return View(stats);
+        }
+
+        private async Task<List<ClientDashboardOptionDto>> GetClientOptionsAsync()
+        {
+            var deviceClientIds = _uow.Devices.Query()
+                .Where(d => d.ClientId.HasValue)
+                .Select(d => d.ClientId!.Value);
+
+            var ownerClientIds = _uow.PortalUsers.Query()
+                .Where(u => u.ClientId.HasValue)
+                .Select(u => u.ClientId!.Value);
+
+            var clientIds = deviceClientIds
+                .Union(ownerClientIds)
+                .Distinct()
+                .OrderBy(id => id)
+                .ToList();
+
+            if (clientIds.Count == 0)
+            {
+                return new List<ClientDashboardOptionDto>();
+            }
+
+            var apiClients = await _uow.ApiClients.FindAsync(a => a.ClientId.HasValue && clientIds.Contains(a.ClientId.Value));
+            var portalUsers = await _uow.PortalUsers.FindAsync(u => u.ClientId.HasValue && clientIds.Contains(u.ClientId.Value) && u.IsActive);
+
+            var nameByClientId = apiClients
+                .GroupBy(a => a.ClientId!.Value)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.Name).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? $"Client {g.Key}");
+
+            var timeZoneByClientId = portalUsers
+                .GroupBy(u => u.ClientId!.Value)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(x => x.UpdatedOn ?? x.CreatedOn)
+                          .Select(x => x.TimeZoneId)
+                          .FirstOrDefault(tz => IsValidTimeZone(tz)) ?? "UTC");
+
+            return clientIds
+                .Select(id => new ClientDashboardOptionDto
+                {
+                    ClientId = id,
+                    DisplayName = nameByClientId.TryGetValue(id, out var name) ? name : $"Client {id}",
+                    TimeZoneId = timeZoneByClientId.TryGetValue(id, out var timeZone) ? timeZone : "UTC"
+                })
+                .ToList();
+        }
+
+        private static bool IsValidTimeZone(string? timeZoneId)
+        {
+            if (string.IsNullOrWhiteSpace(timeZoneId)) return false;
+            try
+            {
+                _ = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 
