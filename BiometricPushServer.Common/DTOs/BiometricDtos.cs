@@ -25,6 +25,7 @@ namespace BiometricPushServer.Common.DTOs
         public string Location { get; set; } = string.Empty;
         public bool IsApproved { get; set; }
         public bool IsActive { get; set; }
+        public bool IsLocked { get; set; }
         public bool IsOnline { get; set; }
         public DateTime? LastConnectedOn { get; set; }
         public DateTime? LastHeartbeatOn { get; set; }
@@ -143,6 +144,6 @@ namespace BiometricPushServer.Common.DTOs
         public int TotalCount { get; set; }
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
-        public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
+        public int TotalPages => PageSize > 0 ? (int)Math.Ceiling((double)TotalCount / PageSize) : 0;
     }
 }

@@ -89,5 +89,16 @@ namespace BiometricPushServer.Repository
                             (c.ExpiresOn == null || c.ExpiresOn > DateTime.UtcNow))
                 .OrderBy(c => c.CreatedOn)
                 .ToListAsync();
+
+        /// <summary>
+        /// Returns commands that were sent to the device but never acknowledged (executed or failed),
+        /// and whose expiry time has passed. These are stuck commands that should be marked failed.
+        /// </summary>
+        public async Task<IEnumerable<BioDeviceCommand>> GetSentExpiredAsync() =>
+            await _dbSet
+                .Where(c => c.IsSent && !c.IsExecuted && !c.IsFailed &&
+                            c.ExpiresOn != null && c.ExpiresOn <= DateTime.UtcNow)
+                .OrderBy(c => c.CreatedOn)
+                .ToListAsync();
     }
 }

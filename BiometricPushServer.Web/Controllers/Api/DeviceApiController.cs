@@ -61,20 +61,20 @@ namespace BiometricPushServer.Web.Controllers.Api
         [HttpPost("{id:int}/lock")]
         public async Task<IActionResult> Lock(int id)
         {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound(ApiResponse<object>.Fail("Device not found", 404));
             await _deviceService.SetLockedAsync(id, true);
-            await _commandService.EnqueueAsync(
-                (await _deviceService.GetDeviceDtoAsync(id))?.SerialNumber ?? string.Empty,
-                "LOCK");
+            await _commandService.EnqueueAsync(device.SerialNumber, "LOCK");
             return Ok(ApiResponse<object>.OkMessage("Lock command queued"));
         }
 
         [HttpPost("{id:int}/unlock")]
         public async Task<IActionResult> Unlock(int id)
         {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound(ApiResponse<object>.Fail("Device not found", 404));
             await _deviceService.SetLockedAsync(id, false);
-            await _commandService.EnqueueAsync(
-                (await _deviceService.GetDeviceDtoAsync(id))?.SerialNumber ?? string.Empty,
-                "UNLOCK");
+            await _commandService.EnqueueAsync(device.SerialNumber, "UNLOCK");
             return Ok(ApiResponse<object>.OkMessage("Unlock command queued"));
         }
 

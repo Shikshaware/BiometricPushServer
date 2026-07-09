@@ -24,6 +24,7 @@ namespace BiometricPushServer.Repository.Interfaces
     {
         Task<IEnumerable<BioDeviceCommand>> GetPendingCommandsAsync(string deviceSN);
         Task<IEnumerable<BioDeviceCommand>> GetAllPendingAsync();
+        Task<IEnumerable<BioDeviceCommand>> GetSentExpiredAsync();
     }
 
     public interface IUnitOfWork : IDisposable

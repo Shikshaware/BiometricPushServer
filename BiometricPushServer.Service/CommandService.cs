@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using BiometricPushServer.Common.Constants;
 using BiometricPushServer.Domain;
 using BiometricPushServer.Repository.Interfaces;
 using BiometricPushServer.Service.Interfaces;
@@ -27,7 +28,7 @@ namespace BiometricPushServer.Service
                 CommandText = string.IsNullOrWhiteSpace(commandText) ? commandType : commandText,
                 Parameters = parameters ?? string.Empty,
                 CreatedOn = DateTime.UtcNow,
-                ExpiresOn = DateTime.UtcNow.AddMinutes(30)
+                ExpiresOn = DateTime.UtcNow.AddMinutes(AppConstants.DefaultCommandTimeoutMinutes)
             };
 
             await _uow.Commands.AddAsync(cmd);
@@ -40,6 +41,9 @@ namespace BiometricPushServer.Service
 
         public async Task<IEnumerable<BioDeviceCommand>> GetAllPendingAsync() =>
             await _uow.Commands.GetAllPendingAsync();
+
+        public async Task<IEnumerable<BioDeviceCommand>> GetSentExpiredAsync() =>
+            await _uow.Commands.GetSentExpiredAsync();
 
         public async Task MarkSentAsync(int commandId)
         {
