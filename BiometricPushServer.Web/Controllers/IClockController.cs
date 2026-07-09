@@ -28,6 +28,7 @@ namespace BiometricPushServer.Web.Controllers
         private readonly IDeviceService _deviceService;
         private readonly IAttendanceService _attendanceService;
         private readonly ICommandService _commandService;
+        private readonly IUserService _userService;
         private readonly IHubContext<AttendanceHub> _hub;
         private readonly ILogger<IClockController> _logger;
 
@@ -35,12 +36,14 @@ namespace BiometricPushServer.Web.Controllers
             IDeviceService deviceService,
             IAttendanceService attendanceService,
             ICommandService commandService,
+            IUserService userService,
             IHubContext<AttendanceHub> hub,
             ILogger<IClockController> logger)
         {
             _deviceService = deviceService;
             _attendanceService = attendanceService;
             _commandService = commandService;
+            _userService = userService;
             _hub = hub;
             _logger = logger;
         }
@@ -133,6 +136,21 @@ namespace BiometricPushServer.Web.Controllers
                     var todayLogs = await _attendanceService.GetTodayAsync(device?.ClientId);
                     await _hub.Clients.All.SendAsync("AttendanceUpdated", todayLogs);
                 }
+            }
+            else if (string.Equals(table, "USERINFO", StringComparison.OrdinalIgnoreCase))
+            {
+                var upserted = 0;
+                foreach (var userDto in ParseUserInfo(body, device?.ClientId))
+                {
+                    var user = await _userService.UpsertAsync(userDto);
+                    if (device != null)
+                        await _userService.AttachUserToDeviceAsync(device.Id, user.Id);
+                    upserted++;
+                }
+
+                _logger.LogInformation(
+                    "IClock USERINFO SN={SN}: upserted={Count}",
+                    SanitizeForLog(SN), upserted);
             }
 
             return Content("OK", "text/plain", Encoding.UTF8);
@@ -351,6 +369,52 @@ namespace BiometricPushServer.Web.Controllers
             workCode = whitespaceParts.Length > 5 ? whitespaceParts[5] : string.Empty;
 
             return true;
+        }
+
+        /// <summary>
+        /// Parses IClock USERINFO lines pushed by the device.
+        /// Format: tab-separated key=value pairs per user, one user per line.
+        /// e.g.: "PIN=1\tName=John\tPri=0\tPasswd=\tCard=12345\tGrp=1\tTZ=...\tVerify=0\tViceCard=0"
+        /// </summary>
+        private static IEnumerable<UserDto> ParseUserInfo(string body, int? clientId)
+        {
+            var users = new List<UserDto>();
+
+            foreach (var rawLine in body.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var line = rawLine.Trim();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                // Skip preamble lines like "table=USERINFO"
+                if (line.StartsWith("table=", StringComparison.OrdinalIgnoreCase)) continue;
+
+                var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var part in line.Split('\t', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var eq = part.IndexOf('=');
+                    if (eq <= 0) continue;
+                    fields[part[..eq].Trim()] = part[(eq + 1)..].Trim();
+                }
+
+                if (!fields.TryGetValue("PIN", out var pin) || string.IsNullOrWhiteSpace(pin))
+                    continue;
+
+                fields.TryGetValue("Name", out var name);
+                fields.TryGetValue("Card", out var card);
+                var privilege = fields.TryGetValue("Pri", out var priStr) && int.TryParse(priStr, out var pri) ? pri : 0;
+
+                users.Add(new UserDto
+                {
+                    ClientId = clientId,
+                    UserCode = pin,
+                    Name = name ?? pin,
+                    CardNumber = card ?? string.Empty,
+                    Privilege = privilege,
+                    IsEnabled = true
+                });
+            }
+
+            return users;
         }
     }
 }

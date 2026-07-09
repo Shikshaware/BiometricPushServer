@@ -114,6 +114,17 @@ namespace BiometricPushServer.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SyncUsers(int id)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
+            await _commandService.EnqueueAsync(device.SerialNumber, AppConstants.CommandSyncUsers);
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> SyncAttendanceLogs(int id)
         {
             var device = await _deviceService.GetDeviceDtoAsync(id);
