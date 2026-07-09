@@ -14,7 +14,10 @@ namespace BiometricPushServer.Service
     {
         private readonly IUnitOfWork _uow;
 
-        public DeviceService(IUnitOfWork uow) => _uow = uow;
+        public DeviceService(IUnitOfWork uow)
+        {
+            _uow = uow;
+        }
 
         public async Task<BioDevice?> GetBySerialNumberAsync(string sn) =>
             await _uow.Devices.GetBySerialNumberAsync(sn);
@@ -35,7 +38,7 @@ namespace BiometricPushServer.Service
                     DeviceModel = dto.DeviceModel,
                     ClientId = dto.ClientId,
                     IsActive = true,
-                    IsApproved = false,  // requires admin approval
+                    IsApproved = false,
                     CreatedOn = DateTime.UtcNow
                 };
                 await _uow.Devices.AddAsync(device);
@@ -155,6 +158,7 @@ namespace BiometricPushServer.Service
         private static DeviceDto MapToDto(BioDevice d, DateTime onlineThreshold) => new DeviceDto
         {
             Id = d.Id,
+            ClientId = d.ClientId,
             SerialNumber = d.SerialNumber,
             DeviceName = d.DeviceName,
             IpAddress = d.IpAddress,

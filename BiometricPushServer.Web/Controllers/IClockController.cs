@@ -104,7 +104,7 @@ namespace BiometricPushServer.Web.Controllers
 
             if (device == null)
             {
-                await _deviceService.RegisterOrUpdateAsync(new DeviceRegistrationDto
+                device = await _deviceService.RegisterOrUpdateAsync(new DeviceRegistrationDto
                 {
                     SerialNumber = SN,
                     DeviceName = SN

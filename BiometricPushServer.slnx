@@ -4,5 +4,6 @@
   <Project Path="BiometricPushServer.Domain/BiometricPushServer.Domain.csproj" />
   <Project Path="BiometricPushServer.Repository/BiometricPushServer.Repository.csproj" />
   <Project Path="BiometricPushServer.Service/BiometricPushServer.Service.csproj" />
+  <Project Path="BiometricPushServer.Tests/BiometricPushServer.Tests.csproj" />
   <Project Path="BiometricPushServer.Web/BiometricPushServer.Web.csproj" />
 </Solution>

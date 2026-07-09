@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using BiometricPushServer.Common.Constants;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Service.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -93,6 +94,16 @@ namespace BiometricPushServer.Web.Controllers.Api
             if (device == null) return NotFound();
             await _commandService.EnqueueAsync(device.SerialNumber, "SYNCTIME");
             return Ok(ApiResponse<object>.OkMessage("SyncTime command queued"));
+        }
+
+        [HttpPost("{id:int}/syncattendancelogs")]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> SyncAttendanceLogs(int id)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound();
+            await _commandService.EnqueueAsync(device.SerialNumber, AppConstants.CommandSyncAttendanceLogs);
+            return Ok(ApiResponse<object>.OkMessage("Attendance log sync command queued"));
         }
 
         [HttpPost("{id:int}/clearattendance")]
