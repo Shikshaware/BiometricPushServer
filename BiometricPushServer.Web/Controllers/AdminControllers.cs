@@ -201,7 +201,7 @@ namespace BiometricPushServer.Web.Controllers
                 return View(new PagedResult<UserDto> { PageNumber = 1, PageSize = pageSize, TotalCount = 0 });
             }
 
-            var result = await _userService.GetAllAsync(selectedDevice.ClientId, pageNumber, pageSize);
+            var result = await _userService.GetByDeviceAsync(selectedDevice.Id, pageNumber, pageSize);
 
             ViewBag.Devices = devices;
             ViewBag.SelectedDeviceId = selectedDevice.Id;
@@ -220,6 +220,7 @@ namespace BiometricPushServer.Web.Controllers
 
             dto.ClientId = device.ClientId;
             var user = await _userService.UpsertAsync(dto);
+            await _userService.AttachUserToDeviceAsync(selectedDeviceId, user.Id);
 
             await _commandService.EnqueueAsync(
                 device.SerialNumber,
@@ -253,11 +254,23 @@ namespace BiometricPushServer.Web.Controllers
             var device = await _deviceService.GetDeviceDtoAsync(selectedDeviceId);
             if (device == null) return NotFound();
 
-            var deleted = await _userService.DeleteAsync(userCode, device.ClientId);
-            if (!deleted)
+            var user = await _userService.GetByCodeAsync(userCode, device.ClientId);
+            if (user == null)
             {
                 TempData["Error"] = "User not found.";
                 return RedirectToAction(nameof(Index), new { selectedDeviceId });
+            }
+
+            var detached = await _userService.DetachUserFromDeviceAsync(selectedDeviceId, user.Id);
+            if (!detached)
+            {
+                TempData["Error"] = "User not found for selected device.";
+                return RedirectToAction(nameof(Index), new { selectedDeviceId });
+            }
+
+            if (!await _userService.UserHasAnyDeviceMappingAsync(user.Id))
+            {
+                await _userService.DeleteAsync(userCode, device.ClientId);
             }
 
             await _commandService.EnqueueAsync(

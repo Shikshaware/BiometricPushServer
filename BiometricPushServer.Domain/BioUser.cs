@@ -26,6 +26,7 @@ namespace BiometricPushServer.Domain
         // Navigation
         public virtual ICollection<BioFingerprint> Fingerprints { get; set; } = new List<BioFingerprint>();
         public virtual ICollection<BioFaceTemplate> FaceTemplates { get; set; } = new List<BioFaceTemplate>();
+        public virtual ICollection<BioDeviceUserMap> DeviceUsers { get; set; } = new List<BioDeviceUserMap>();
         public virtual ICollection<BioPalmTemplate> PalmTemplates { get; set; } = new List<BioPalmTemplate>();
     }
 }
