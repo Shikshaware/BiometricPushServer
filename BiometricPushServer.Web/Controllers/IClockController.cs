@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Common.Extensions;
 using BiometricPushServer.Common.Constants;
@@ -279,22 +280,77 @@ namespace BiometricPushServer.Web.Controllers
 
             foreach (var line in body.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
-                var parts = line.Trim().Split('\t');
-                if (parts.Length < 2) continue;
+                var trimmedLine = line.Trim();
+                if (string.IsNullOrWhiteSpace(trimmedLine)) continue;
 
-                if (!DateTime.TryParse(parts[1].Trim(), out var punchTime)) continue;
+                if (!TryParseAttendanceLine(trimmedLine, out var userCode, out var punchTime,
+                    out var attendanceState, out var verifyMode, out var workCode))
+                {
+                    continue;
+                }
 
                 records.Add(new AttendanceRecordDto
                 {
-                    UserCode = parts[0].Trim(),
+                    UserCode = userCode,
                     PunchTime = punchTime,
-                    AttendanceState = parts.Length > 2 && int.TryParse(parts[2], out int state) ? state : 0,
-                    VerifyMode = parts.Length > 3 && int.TryParse(parts[3], out int vm) ? vm : 1,
-                    WorkCode = parts.Length > 4 ? parts[4].Trim() : string.Empty
+                    AttendanceState = attendanceState,
+                    VerifyMode = verifyMode,
+                    WorkCode = workCode
                 });
             }
 
             return records;
+        }
+
+        private static bool TryParseAttendanceLine(
+            string line,
+            out string userCode,
+            out DateTime punchTime,
+            out int attendanceState,
+            out int verifyMode,
+            out string workCode)
+        {
+            userCode = string.Empty;
+            punchTime = default;
+            attendanceState = 0;
+            verifyMode = 1;
+            workCode = string.Empty;
+
+            var tabSeparatedParts = line.Split('\t', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (tabSeparatedParts.Length >= 2 &&
+                DateTime.TryParse(tabSeparatedParts[1], out punchTime))
+            {
+                userCode = tabSeparatedParts[0];
+                attendanceState = tabSeparatedParts.Length > 2 && int.TryParse(tabSeparatedParts[2], out var state)
+                    ? state
+                    : 0;
+                verifyMode = tabSeparatedParts.Length > 3 && int.TryParse(tabSeparatedParts[3], out var mode)
+                    ? mode
+                    : 1;
+                workCode = tabSeparatedParts.Length > 4 ? tabSeparatedParts[4] : string.Empty;
+                return true;
+            }
+
+            var whitespaceParts = Regex.Split(line, @"\s+")
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .ToArray();
+
+            if (whitespaceParts.Length < 3 ||
+                !DateTime.TryParse($"{whitespaceParts[1]} {whitespaceParts[2]}", out punchTime))
+            {
+                return false;
+            }
+
+            userCode = whitespaceParts[0];
+            attendanceState = whitespaceParts.Length > 3 && int.TryParse(whitespaceParts[3], out var whitespaceState)
+                ? whitespaceState
+                : 0;
+            verifyMode = whitespaceParts.Length > 4 && int.TryParse(whitespaceParts[4], out var whitespaceMode)
+                ? whitespaceMode
+                : 1;
+            workCode = whitespaceParts.Length > 5 ? whitespaceParts[5] : string.Empty;
+
+            return true;
         }
     }
 }

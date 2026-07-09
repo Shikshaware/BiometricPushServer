@@ -116,6 +116,59 @@ namespace BiometricPushServer.Tests
         }
 
         [Fact]
+        public async Task CDataPost_AttlogTable_ParsesWhitespaceSeparatedRecordsAndCallsService()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var attendanceSvcMock = new Mock<IAttendanceService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN002",
+                ClientId = 1,
+                IsApproved = true
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN002")).ReturnsAsync(device);
+            deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+
+            IEnumerable<AttendanceRecordDto>? capturedRecords = null;
+            attendanceSvcMock.Setup(s => s.ProcessPushAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<IEnumerable<AttendanceRecordDto>>(),
+                    It.IsAny<int?>()))
+                .Callback<string, IEnumerable<AttendanceRecordDto>, int?>((_, recs, __) =>
+                    capturedRecords = recs)
+                .ReturnsAsync((1, 0));
+            attendanceSvcMock.Setup(s => s.GetTodayAsync(It.IsAny<int?>()))
+                .ReturnsAsync(new List<AttendanceLogDto>());
+
+            var controller = BuildController(deviceSvcMock, attendanceSvcMock);
+
+            var body = "1  2024-03-15  09:00:00  0  1  0  0\r\n2    2024-03-15    09:05:00    1    2    9    0\r\n";
+            SetRequestBody(controller, body);
+
+            var result = await controller.CDataPost("SN002", table: "ATTLOG");
+
+            Assert.IsType<ContentResult>(result);
+            Assert.NotNull(capturedRecords);
+
+            var recordList = capturedRecords!.ToList();
+            Assert.Equal(2, recordList.Count);
+            Assert.Equal("1", recordList[0].UserCode);
+            Assert.Equal(new DateTime(2024, 3, 15, 9, 0, 0), recordList[0].PunchTime);
+            Assert.Equal(0, recordList[0].AttendanceState);
+            Assert.Equal(1, recordList[0].VerifyMode);
+            Assert.Equal("0", recordList[0].WorkCode);
+
+            Assert.Equal("2", recordList[1].UserCode);
+            Assert.Equal(new DateTime(2024, 3, 15, 9, 5, 0), recordList[1].PunchTime);
+            Assert.Equal(1, recordList[1].AttendanceState);
+            Assert.Equal(2, recordList[1].VerifyMode);
+            Assert.Equal("9", recordList[1].WorkCode);
+        }
+
+        [Fact]
         public async Task CDataPost_AttlogTable_SkipsBodyPreambleLine()
         {
             // Arrange — body starts with "table=ATTLOG" preamble (as some ZKTeco devices send)
