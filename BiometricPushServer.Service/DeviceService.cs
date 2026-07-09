@@ -55,9 +55,11 @@ namespace BiometricPushServer.Service
             return device;
         }
 
-        public async Task<IEnumerable<DeviceDto>> GetAllDevicesAsync(int? clientId = null)
+        public async Task<IEnumerable<DeviceDto>> GetAllDevicesAsync(int? clientId = null, int? locationId = null)
         {
-            var devices = await _uow.Devices.FindAsync(d => clientId == null || d.ClientId == clientId);
+            var devices = await _uow.Devices.FindAsync(d =>
+                (clientId == null || d.ClientId == clientId) &&
+                (locationId == null || d.LocationId == locationId));
             var onlineThreshold = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes);
             return devices.Select(d => MapToDto(d, onlineThreshold));
         }
@@ -74,6 +76,7 @@ namespace BiometricPushServer.Service
         {
             var device = await _uow.Devices.GetByIdAsync(deviceId);
             if (device == null) return false;
+            if (!device.ClientId.HasValue || !device.LocationId.HasValue) return false;
             device.IsApproved = true;
             _uow.Devices.Update(device);
             await _uow.SaveChangesAsync();
@@ -145,7 +148,16 @@ namespace BiometricPushServer.Service
             device.DeviceName = dto.DeviceName;
             device.Location = dto.Location;
             if (dto.ClientId.HasValue) device.ClientId = dto.ClientId;
-            if (dto.LocationId.HasValue) device.LocationId = dto.LocationId;
+            if (dto.LocationId.HasValue)
+            {
+                var location = await _uow.Locations.GetByIdAsync(dto.LocationId.Value);
+                if (location == null) return null;
+                if (device.ClientId.HasValue && location.ClientId.HasValue && device.ClientId != location.ClientId)
+                    return null;
+
+                device.LocationId = dto.LocationId;
+                device.ClientId ??= location.ClientId;
+            }
             device.UpdatedOn = DateTime.UtcNow;
 
             _uow.Devices.Update(device);
@@ -153,6 +165,41 @@ namespace BiometricPushServer.Service
 
             var onlineThreshold = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes);
             return MapToDto(device, onlineThreshold);
+        }
+
+        public async Task<int> BulkAssignLocationAsync(IEnumerable<int> deviceIds, int locationId, int? clientId = null)
+        {
+            var location = await _uow.Locations.GetByIdAsync(locationId);
+            if (location == null) return 0;
+
+            var ids = deviceIds.Distinct().ToList();
+            if (ids.Count == 0) return 0;
+
+            var devices = await _uow.Devices.FindAsync(d =>
+                ids.Contains(d.Id) &&
+                (clientId == null || d.ClientId == clientId));
+
+            var updated = 0;
+            foreach (var device in devices)
+            {
+                if (location.ClientId.HasValue &&
+                    device.ClientId.HasValue &&
+                    device.ClientId != location.ClientId)
+                {
+                    continue;
+                }
+
+                device.LocationId = locationId;
+                device.ClientId ??= location.ClientId;
+                device.UpdatedOn = DateTime.UtcNow;
+                _uow.Devices.Update(device);
+                updated++;
+            }
+
+            if (updated > 0)
+                await _uow.SaveChangesAsync();
+
+            return updated;
         }
 
         private static DeviceDto MapToDto(BioDevice d, DateTime onlineThreshold) => new DeviceDto
@@ -164,6 +211,7 @@ namespace BiometricPushServer.Service
             IpAddress = d.IpAddress,
             FirmwareVersion = d.FirmwareVersion,
             Location = d.Location,
+            LocationId = d.LocationId,
             IsApproved = d.IsApproved,
             IsActive = d.IsActive,
             IsLocked = d.IsLocked,

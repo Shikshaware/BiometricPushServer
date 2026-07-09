@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Service.Interfaces;
+using BiometricPushServer.Web.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,9 +21,10 @@ namespace BiometricPushServer.Web.Controllers.Api
         }
 
         [HttpGet("stats")]
-        public async Task<IActionResult> GetStats([FromQuery] int? clientId)
+        public async Task<IActionResult> GetStats([FromQuery] int? clientId, [FromQuery] int? locationId)
         {
-            var stats = await _dashboardService.GetStatsAsync(clientId);
+            var scopedClientId = User.ResolveClientId(clientId);
+            var stats = await _dashboardService.GetStatsAsync(scopedClientId, locationId);
             return Ok(ApiResponse<object>.Ok(stats));
         }
     }

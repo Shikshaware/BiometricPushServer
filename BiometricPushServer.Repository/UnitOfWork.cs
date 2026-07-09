@@ -24,6 +24,7 @@ namespace BiometricPushServer.Repository
         public IGenericRepository<BioErrorLog> ErrorLogs { get; }
         public IGenericRepository<BioSyncHistory> SyncHistories { get; }
         public IGenericRepository<ApiClient> ApiClients { get; }
+        public IGenericRepository<BioPortalUser> PortalUsers { get; }
         public IGenericRepository<BioCompany> Companies { get; }
         public IGenericRepository<BioLocation> Locations { get; }
         public IGenericRepository<BioDepartment> Departments { get; }
@@ -48,6 +49,7 @@ namespace BiometricPushServer.Repository
             ErrorLogs = new GenericRepository<BioErrorLog>(context);
             SyncHistories = new GenericRepository<BioSyncHistory>(context);
             ApiClients = new GenericRepository<ApiClient>(context);
+            PortalUsers = new GenericRepository<BioPortalUser>(context);
             Companies = new GenericRepository<BioCompany>(context);
             Locations = new GenericRepository<BioLocation>(context);
             Departments = new GenericRepository<BioDepartment>(context);

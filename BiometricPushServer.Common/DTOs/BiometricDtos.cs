@@ -18,6 +18,7 @@ namespace BiometricPushServer.Common.DTOs
     {
         public int Id { get; set; }
         public int? ClientId { get; set; }
+        public int? LocationId { get; set; }
         public string SerialNumber { get; set; } = string.Empty;
         public string DeviceName { get; set; } = string.Empty;
         public string IpAddress { get; set; } = string.Empty;
@@ -77,6 +78,12 @@ namespace BiometricPushServer.Common.DTOs
         public string Location { get; set; } = string.Empty;
         public int? ClientId { get; set; }
         public int? LocationId { get; set; }
+    }
+
+    public class DeviceBulkAssignLocationDto
+    {
+        public List<int> DeviceIds { get; set; } = new List<int>();
+        public int LocationId { get; set; }
     }
 
     public class DepartmentDto

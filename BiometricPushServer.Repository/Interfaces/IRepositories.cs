@@ -43,6 +43,7 @@ namespace BiometricPushServer.Repository.Interfaces
         IGenericRepository<BioErrorLog> ErrorLogs { get; }
         IGenericRepository<BioSyncHistory> SyncHistories { get; }
         IGenericRepository<ApiClient> ApiClients { get; }
+        IGenericRepository<BioPortalUser> PortalUsers { get; }
         IGenericRepository<BioCompany> Companies { get; }
         IGenericRepository<BioLocation> Locations { get; }
         IGenericRepository<BioDepartment> Departments { get; }

@@ -166,15 +166,20 @@ namespace BiometricPushServer.Service
 
         public DashboardService(IUnitOfWork uow) => _uow = uow;
 
-        public async Task<DashboardStatsDto> GetStatsAsync(int? clientId = null)
+        public async Task<DashboardStatsDto> GetStatsAsync(int? clientId = null, int? locationId = null)
         {
             var onlineThreshold = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes);
 
             var allDevices = await _uow.Devices.FindAsync(d =>
-                clientId == null || d.ClientId == clientId);
+                (clientId == null || d.ClientId == clientId) &&
+                (locationId == null || d.LocationId == locationId));
 
-            var today = DateTime.Today;
             var todayLogs = await _uow.Attendance.GetTodayLogsAsync(clientId);
+            if (locationId.HasValue)
+            {
+                var locationDeviceIds = allDevices.Select(d => d.Id).ToHashSet();
+                todayLogs = todayLogs.Where(a => a.DeviceId.HasValue && locationDeviceIds.Contains(a.DeviceId.Value));
+            }
             var pendingCmds = await _uow.Commands.GetAllPendingAsync();
 
             var recentPunches = todayLogs

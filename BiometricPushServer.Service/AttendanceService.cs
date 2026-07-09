@@ -82,12 +82,20 @@ namespace BiometricPushServer.Service
 
         public async Task<PagedResult<AttendanceLogDto>> GetAttendanceAsync(
             int? clientId, int pageNumber, int pageSize,
-            DateTime? from = null, DateTime? to = null)
+            DateTime? from = null, DateTime? to = null, int? locationId = null)
         {
             var query = _uow.Attendance.Query();
             if (clientId.HasValue) query = query.Where(a => a.ClientId == clientId);
             if (from.HasValue) query = query.Where(a => a.PunchTime >= from.Value);
             if (to.HasValue) query = query.Where(a => a.PunchTime <= to.Value);
+            if (locationId.HasValue)
+            {
+                var locationDeviceIds = _uow.Devices.Query()
+                    .Where(d => d.LocationId == locationId &&
+                                (!clientId.HasValue || d.ClientId == clientId))
+                    .Select(d => d.Id);
+                query = query.Where(a => a.DeviceId.HasValue && locationDeviceIds.Contains(a.DeviceId.Value));
+            }
 
             var total = await query.CountAsync();
             var items = await query
@@ -106,9 +114,19 @@ namespace BiometricPushServer.Service
             };
         }
 
-        public async Task<IEnumerable<AttendanceLogDto>> GetTodayAsync(int? clientId = null)
+        public async Task<IEnumerable<AttendanceLogDto>> GetTodayAsync(int? clientId = null, int? locationId = null)
         {
             var logs = await _uow.Attendance.GetTodayLogsAsync(clientId);
+            if (locationId.HasValue)
+            {
+                var locationDeviceIds = (await _uow.Devices.FindAsync(d =>
+                        d.LocationId == locationId &&
+                        (!clientId.HasValue || d.ClientId == clientId)))
+                    .Select(d => d.Id)
+                    .ToHashSet();
+                logs = logs.Where(a => a.DeviceId.HasValue && locationDeviceIds.Contains(a.DeviceId.Value));
+            }
+
             return logs.Select(MapToDto);
         }
 

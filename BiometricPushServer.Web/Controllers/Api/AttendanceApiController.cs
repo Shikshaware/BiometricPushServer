@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Service.Interfaces;
+using BiometricPushServer.Web.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,28 +17,33 @@ namespace BiometricPushServer.Web.Controllers.Api
     public class AttendanceApiController : ControllerBase
     {
         private readonly IAttendanceService _attendanceService;
+        private readonly IDeviceService _deviceService;
 
-        public AttendanceApiController(IAttendanceService attendanceService)
+        public AttendanceApiController(IAttendanceService attendanceService, IDeviceService deviceService)
         {
             _attendanceService = attendanceService;
+            _deviceService = deviceService;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] int? clientId,
+            [FromQuery] int? locationId,
             [FromQuery] DateTime? from,
             [FromQuery] DateTime? to,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 50)
         {
-            var result = await _attendanceService.GetAttendanceAsync(clientId, pageNumber, pageSize, from, to);
+            var scopedClientId = User.ResolveClientId(clientId);
+            var result = await _attendanceService.GetAttendanceAsync(scopedClientId, pageNumber, pageSize, from, to, locationId);
             return Ok(ApiResponse<object>.Ok(result));
         }
 
         [HttpGet("today")]
-        public async Task<IActionResult> GetToday([FromQuery] int? clientId)
+        public async Task<IActionResult> GetToday([FromQuery] int? clientId, [FromQuery] int? locationId)
         {
-            var logs = await _attendanceService.GetTodayAsync(clientId);
+            var scopedClientId = User.ResolveClientId(clientId);
+            var logs = await _attendanceService.GetTodayAsync(scopedClientId, locationId);
             return Ok(ApiResponse<object>.Ok(logs));
         }
 
@@ -47,6 +53,14 @@ namespace BiometricPushServer.Web.Controllers.Api
             [FromQuery] DateTime? from,
             [FromQuery] DateTime? to)
         {
+            var claimClientId = User.GetClientIdClaim();
+            if (claimClientId.HasValue)
+            {
+                var isAccessible = (await _deviceService.GetAllDevicesAsync(claimClientId.Value))
+                    .Any(d => d.SerialNumber == deviceSN);
+                if (!isAccessible) return Forbid();
+            }
+
             var fromDate = from ?? DateTime.Today;
             var toDate = to ?? DateTime.Today.AddDays(1).AddTicks(-1);
             var logs = await _attendanceService.GetByDeviceAsync(deviceSN, fromDate, toDate);
@@ -74,12 +88,14 @@ namespace BiometricPushServer.Web.Controllers.Api
         [HttpGet("export")]
         public async Task<IActionResult> Export(
             [FromQuery] int? clientId,
+            [FromQuery] int? locationId,
             [FromQuery] DateTime? from,
             [FromQuery] DateTime? to)
         {
             const int exportLimit = 50_000;
+            var scopedClientId = User.ResolveClientId(clientId);
             var result = await _attendanceService.GetAttendanceAsync(
-                clientId, 1, exportLimit, from, to);
+                scopedClientId, 1, exportLimit, from, to, locationId);
 
             var sb = new StringBuilder();
             sb.AppendLine("Id,DeviceSN,UserCode,UserName,PunchTime,AttendanceState,VerifyMode,IsDuplicate,CreatedOn");

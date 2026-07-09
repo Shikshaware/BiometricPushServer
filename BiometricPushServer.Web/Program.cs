@@ -1,5 +1,6 @@
 using System.Text;
 using BiometricPushServer.Data;
+using BiometricPushServer.Domain;
 using BiometricPushServer.Repository;
 using BiometricPushServer.Repository.Interfaces;
 using BiometricPushServer.Service;
@@ -12,6 +13,7 @@ using Hangfire.Dashboard;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
@@ -74,6 +76,7 @@ builder.Services.AddDbContext<BiometricDbContext>(opts =>
 
 // ── Repository / UoW ─────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IPasswordHasher<BioPortalUser>, PasswordHasher<BioPortalUser>>();
 
 // ── Services ──────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IDeviceService, DeviceService>();
