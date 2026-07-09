@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BiometricPushServer.Common.Constants;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Domain;
 using BiometricPushServer.Service.Interfaces;
@@ -308,36 +309,36 @@ namespace BiometricPushServer.Tests
 
             var device = new BioDevice
             {
-            Id = 1,
-            SerialNumber = "SN001",
-            ClientId = 7,
-            IsApproved = true,
-            IsActive = true,
-            LastHeartbeatOn = DateTime.UtcNow.AddMinutes(-10)
+                Id = 1,
+                SerialNumber = "SN001",
+                ClientId = 7,
+                IsApproved = true,
+                IsActive = true,
+                LastHeartbeatOn = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes - 1)
             };
 
             deviceSvcMock.Setup(s => s.RegisterOrUpdateAsync(It.IsAny<DeviceRegistrationDto>(), It.IsAny<string>()))
-            .ReturnsAsync(device);
+                .ReturnsAsync(device);
             deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync("SN001", It.IsAny<string>(), It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
+                .Returns(Task.CompletedTask);
             commandSvcMock.Setup(s => s.GetPendingAsync("SN001"))
-            .ReturnsAsync(new List<BioDeviceCommand>());
+                .ReturnsAsync(new List<BioDeviceCommand>());
 
             var controller = BuildController(deviceSvcMock, attendanceSvcMock, commandSvcMock);
             controller.ControllerContext = new ControllerContext
             {
-            HttpContext = new DefaultHttpContext()
+                HttpContext = new DefaultHttpContext()
             };
 
             var result = await controller.CDataGet("SN001");
 
             Assert.IsType<ContentResult>(result);
             commandSvcMock.Verify(s => s.EnqueueAsync(
-            "SN001",
-            BiometricPushServer.Common.Constants.AppConstants.CommandSyncAttendanceLogs,
-            null,
-            7,
-            null), Times.Once);
+                "SN001",
+                AppConstants.CommandSyncAttendanceLogs,
+                null,
+                7,
+                null), Times.Once);
         }
 
         [Fact]
@@ -349,42 +350,127 @@ namespace BiometricPushServer.Tests
 
             var device = new BioDevice
             {
-            Id = 1,
-            SerialNumber = "SN001",
-            ClientId = 7,
-            IsApproved = true,
-            IsActive = true,
-            LastHeartbeatOn = DateTime.UtcNow.AddMinutes(-10)
+                Id = 1,
+                SerialNumber = "SN001",
+                ClientId = 7,
+                IsApproved = true,
+                IsActive = true,
+                LastHeartbeatOn = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes - 1)
             };
 
             deviceSvcMock.Setup(s => s.RegisterOrUpdateAsync(It.IsAny<DeviceRegistrationDto>(), It.IsAny<string>()))
-            .ReturnsAsync(device);
+                .ReturnsAsync(device);
             deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync("SN001", It.IsAny<string>(), It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
+                .Returns(Task.CompletedTask);
             commandSvcMock.Setup(s => s.GetPendingAsync("SN001"))
-            .ReturnsAsync(new[]
-            {
-                new BioDeviceCommand
+                .ReturnsAsync(new[]
                 {
-                    DeviceSN = "SN001",
-                    CommandType = BiometricPushServer.Common.Constants.AppConstants.CommandSyncAttendanceLogs
-                }
-            });
+                    new BioDeviceCommand
+                    {
+                        DeviceSN = "SN001",
+                        CommandType = AppConstants.CommandSyncAttendanceLogs
+                    }
+                });
 
             var controller = BuildController(deviceSvcMock, attendanceSvcMock, commandSvcMock);
             controller.ControllerContext = new ControllerContext
             {
-            HttpContext = new DefaultHttpContext()
+                HttpContext = new DefaultHttpContext()
             };
 
             await controller.CDataGet("SN001");
 
             commandSvcMock.Verify(s => s.EnqueueAsync(
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string?>(),
-            It.IsAny<int?>(),
-            It.IsAny<string?>()), Times.Never);
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<int?>(),
+                It.IsAny<string?>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CDataGet_RecentlyOnlineDevice_DoesNotQueueAutomaticSync()
+        {
+            await AssertAutomaticSyncQueuedAsync(new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN001",
+                ClientId = 7,
+                IsApproved = true,
+                IsActive = true,
+                LastHeartbeatOn = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes + 1)
+            }, Times.Never());
+        }
+
+        [Fact]
+        public async Task CDataGet_UnapprovedDevice_DoesNotQueueAutomaticSync()
+        {
+            await AssertAutomaticSyncQueuedAsync(new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN001",
+                ClientId = 7,
+                IsApproved = false,
+                IsActive = true,
+                LastHeartbeatOn = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes - 1)
+            }, Times.Never());
+        }
+
+        [Fact]
+        public async Task CDataGet_InactiveDevice_DoesNotQueueAutomaticSync()
+        {
+            await AssertAutomaticSyncQueuedAsync(new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN001",
+                ClientId = 7,
+                IsApproved = true,
+                IsActive = false,
+                LastHeartbeatOn = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes - 1)
+            }, Times.Never());
+        }
+
+        [Fact]
+        public async Task CDataGet_DeviceWithoutPreviousHeartbeat_DoesNotQueueAutomaticSync()
+        {
+            await AssertAutomaticSyncQueuedAsync(new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN001",
+                ClientId = 7,
+                IsApproved = true,
+                IsActive = true,
+                LastHeartbeatOn = null
+            }, Times.Never());
+        }
+
+        private async Task AssertAutomaticSyncQueuedAsync(BioDevice device, Times expectedTimes)
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var attendanceSvcMock = new Mock<IAttendanceService>();
+            var commandSvcMock = new Mock<ICommandService>();
+
+            deviceSvcMock.Setup(s => s.RegisterOrUpdateAsync(It.IsAny<DeviceRegistrationDto>(), It.IsAny<string>()))
+                .ReturnsAsync(device);
+            deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync(device.SerialNumber, It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+            commandSvcMock.Setup(s => s.GetPendingAsync(device.SerialNumber))
+                .ReturnsAsync(new List<BioDeviceCommand>());
+
+            var controller = BuildController(deviceSvcMock, attendanceSvcMock, commandSvcMock);
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            };
+
+            await controller.CDataGet(device.SerialNumber);
+
+            commandSvcMock.Verify(s => s.EnqueueAsync(
+                device.SerialNumber,
+                AppConstants.CommandSyncAttendanceLogs,
+                null,
+                device.ClientId,
+                null), expectedTimes);
         }
     }
 }
