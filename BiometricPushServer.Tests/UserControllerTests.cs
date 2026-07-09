@@ -40,7 +40,7 @@ namespace BiometricPushServer.Tests
             var deviceService = new Mock<IDeviceService>();
             var commandService = new Mock<ICommandService>();
 
-            deviceService.Setup(s => s.GetAllDevicesAsync(null)).ReturnsAsync(new List<DeviceDto>
+            deviceService.Setup(s => s.GetAllDevicesAsync(null, null)).ReturnsAsync(new List<DeviceDto>
             {
                 new DeviceDto { Id = 1, SerialNumber = "SN1" },
                 new DeviceDto { Id = 2, SerialNumber = "SN2" }
@@ -55,7 +55,7 @@ namespace BiometricPushServer.Tests
             });
 
             var controller = BuildController(userService, deviceService, commandService);
-            var result = await controller.Index(2, null, null, 1, 50);
+            var result = await controller.Index(2, null, null, null, 1, 50);
 
             var view = Assert.IsType<ViewResult>(result);
             var model = Assert.IsType<PagedResult<UserDto>>(view.Model);

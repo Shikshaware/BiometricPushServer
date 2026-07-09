@@ -4,6 +4,7 @@ using BiometricPushServer.Common.Constants;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Domain;
 using BiometricPushServer.Service.Interfaces;
+using BiometricPushServer.Web.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,9 +20,10 @@ namespace BiometricPushServer.Web.Controllers
             _dashboardService = dashboardService;
         }
 
-        public async Task<IActionResult> Index([FromQuery] int? clientId)
+        public async Task<IActionResult> Index([FromQuery] int? clientId, [FromQuery] int? locationId)
         {
-            var stats = await _dashboardService.GetStatsAsync(clientId);
+            var scopedClientId = User.ResolveClientId(clientId);
+            var stats = await _dashboardService.GetStatsAsync(scopedClientId, locationId);
             return View(stats);
         }
     }
@@ -38,9 +40,10 @@ namespace BiometricPushServer.Web.Controllers
             _commandService = commandService;
         }
 
-        public async Task<IActionResult> Index([FromQuery] int? clientId)
+        public async Task<IActionResult> Index([FromQuery] int? clientId, [FromQuery] int? locationId)
         {
-            var devices = await _deviceService.GetAllDevicesAsync(clientId);
+            var scopedClientId = User.ResolveClientId(clientId);
+            var devices = await _deviceService.GetAllDevicesAsync(scopedClientId, locationId);
             return View(devices);
         }
 
@@ -48,6 +51,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(id);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
             return View(device);
         }
 
@@ -55,6 +59,9 @@ namespace BiometricPushServer.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Approve(int id)
         {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
             await _deviceService.ApproveDeviceAsync(id);
             return RedirectToAction(nameof(Index));
         }
@@ -65,6 +72,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(id);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
             await _deviceService.SetLockedAsync(id, true);
             await _commandService.EnqueueAsync(device.SerialNumber, "LOCK");
             return RedirectToAction(nameof(Details), new { id });
@@ -76,6 +84,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(id);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
             await _deviceService.SetLockedAsync(id, false);
             await _commandService.EnqueueAsync(device.SerialNumber, "UNLOCK");
             return RedirectToAction(nameof(Details), new { id });
@@ -87,6 +96,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(id);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
             await _commandService.EnqueueAsync(device.SerialNumber, "RESTART");
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -97,6 +107,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(id);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
             await _commandService.EnqueueAsync(device.SerialNumber, "SYNCTIME");
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -107,6 +118,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(id);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
             await _commandService.EnqueueAsync(device.SerialNumber, AppConstants.CommandSyncAttendanceLogs);
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -117,6 +129,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(id);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
             await _commandService.EnqueueAsync(device.SerialNumber, "CLEAR ATT LOG");
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -127,6 +140,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(id);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
             await _commandService.EnqueueAsync(device.SerialNumber, "CLEAR DATA");
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -144,16 +158,19 @@ namespace BiometricPushServer.Web.Controllers
 
         public async Task<IActionResult> Index(
             [FromQuery] int? clientId,
+            [FromQuery] int? locationId,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 50)
         {
-            var result = await _attendanceService.GetAttendanceAsync(clientId, pageNumber, pageSize);
+            var scopedClientId = User.ResolveClientId(clientId);
+            var result = await _attendanceService.GetAttendanceAsync(scopedClientId, pageNumber, pageSize, null, null, locationId);
             return View(result);
         }
 
-        public async Task<IActionResult> Today([FromQuery] int? clientId)
+        public async Task<IActionResult> Today([FromQuery] int? clientId, [FromQuery] int? locationId)
         {
-            var logs = await _attendanceService.GetTodayAsync(clientId);
+            var scopedClientId = User.ResolveClientId(clientId);
+            var logs = await _attendanceService.GetTodayAsync(scopedClientId, locationId);
             return View(logs);
         }
     }
@@ -187,10 +204,12 @@ namespace BiometricPushServer.Web.Controllers
             [FromQuery] int? selectedDeviceId,
             [FromQuery] string? editUserCode,
             [FromQuery] int? clientId,
+            [FromQuery] int? locationId,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 50)
         {
-            var devices = (await _deviceService.GetAllDevicesAsync(clientId)).ToList();
+            var scopedClientId = User.ResolveClientId(clientId);
+            var devices = (await _deviceService.GetAllDevicesAsync(scopedClientId, locationId)).ToList();
             var selectedDevice = selectedDeviceId.HasValue
                 ? devices.FirstOrDefault(d => d.Id == selectedDeviceId.Value)
                 : devices.FirstOrDefault();
@@ -217,6 +236,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(selectedDeviceId);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
 
             dto.ClientId = device.ClientId;
             var user = await _userService.UpsertAsync(dto);
@@ -253,6 +273,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(selectedDeviceId);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
 
             var user = await _userService.GetByCodeAsync(userCode, device.ClientId);
             if (user == null)
@@ -288,6 +309,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(selectedDeviceId);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
 
             await _commandService.EnqueueAsync(
                 device.SerialNumber,
@@ -304,6 +326,7 @@ namespace BiometricPushServer.Web.Controllers
         {
             var device = await _deviceService.GetDeviceDtoAsync(selectedDeviceId);
             if (device == null) return NotFound();
+            if (!User.CanAccessClient(device.ClientId)) return Forbid();
 
             await _commandService.EnqueueAsync(
                 device.SerialNumber,

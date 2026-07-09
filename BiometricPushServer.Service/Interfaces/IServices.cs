@@ -9,20 +9,21 @@ namespace BiometricPushServer.Service.Interfaces
     {
         Task<BioDevice?> GetBySerialNumberAsync(string sn);
         Task<BioDevice?> RegisterOrUpdateAsync(DeviceRegistrationDto dto, string ipAddress);
-        Task<IEnumerable<DeviceDto>> GetAllDevicesAsync(int? clientId = null);
+        Task<IEnumerable<DeviceDto>> GetAllDevicesAsync(int? clientId = null, int? locationId = null);
         Task<bool> ApproveDeviceAsync(int deviceId);
         Task<bool> SetLockedAsync(int deviceId, bool locked);
         Task UpdateHeartbeatAsync(string sn, string ipAddress, string rawQuery);
         Task MarkOfflineDevicesAsync();
         Task<DeviceDto?> GetDeviceDtoAsync(int deviceId);
         Task<DeviceDto?> UpdateDeviceAsync(int deviceId, DeviceUpdateDto dto);
+        Task<int> BulkAssignLocationAsync(IEnumerable<int> deviceIds, int locationId, int? clientId = null);
     }
 
     public interface IAttendanceService
     {
         Task<(int saved, int duplicates)> ProcessPushAsync(string deviceSN, IEnumerable<AttendanceRecordDto> records, int? clientId);
-        Task<PagedResult<AttendanceLogDto>> GetAttendanceAsync(int? clientId, int pageNumber, int pageSize, System.DateTime? from = null, System.DateTime? to = null);
-        Task<IEnumerable<AttendanceLogDto>> GetTodayAsync(int? clientId = null);
+        Task<PagedResult<AttendanceLogDto>> GetAttendanceAsync(int? clientId, int pageNumber, int pageSize, System.DateTime? from = null, System.DateTime? to = null, int? locationId = null);
+        Task<IEnumerable<AttendanceLogDto>> GetTodayAsync(int? clientId = null, int? locationId = null);
         Task<IEnumerable<AttendanceLogDto>> GetByDeviceAsync(string deviceSN, System.DateTime from, System.DateTime to);
         Task<IEnumerable<AttendanceLogDto>> GetByUserAsync(string userCode, System.DateTime from, System.DateTime to, int? clientId = null);
     }
@@ -52,7 +53,7 @@ namespace BiometricPushServer.Service.Interfaces
 
     public interface IDashboardService
     {
-        Task<DashboardStatsDto> GetStatsAsync(int? clientId = null);
+        Task<DashboardStatsDto> GetStatsAsync(int? clientId = null, int? locationId = null);
     }
 
     public interface IDepartmentService

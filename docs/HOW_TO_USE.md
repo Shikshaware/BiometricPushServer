@@ -84,6 +84,9 @@ Navigate to `https://localhost:5001` in your browser.
 | Username | `admin` |
 | Password | `Admin@123` |
 
+Provider admins can still login with the default admin credentials.  
+Client owners login with `username + password + clientId` and are automatically scoped to their own client data.
+
 After login you are redirected to the **Dashboard** (`/Dashboard`).
 
 ### Dashboard pages
@@ -163,7 +166,8 @@ Content-Type: application/json
 
 {
   "username": "admin",
-  "password": "Admin@123"
+  "password": "Admin@123",
+  "clientId": null
 }
 ```
 
@@ -182,11 +186,42 @@ Use the token in all subsequent API requests:
 Authorization: ******
 ```
 
+Owner logins must include `clientId` in the token request payload.
+
+### 4.1.1 Owner invite and registration
+
+Provider admin can create owner invite tokens:
+
+```http
+POST /api/auth/create-owner-invite
+Authorization: ******
+Content-Type: application/json
+
+{
+  "clientId": 5,
+  "username": "owner1"
+}
+```
+
+Owner registration with invite token:
+
+```http
+POST /api/auth/register-owner
+Content-Type: application/json
+
+{
+  "clientId": 5,
+  "username": "owner1",
+  "password": "StrongPass!123",
+  "inviteToken": "<token>"
+}
+```
+
 ### 4.2 Devices
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/device` | List all devices (optional `?clientId=`) |
+| GET | `/api/device` | List all devices (optional `?clientId=&locationId=`) |
 | GET | `/api/device/{id}` | Get a single device |
 | POST | `/api/device/{id}/approve` | Approve a device |
 | POST | `/api/device/{id}/lock` | Lock device + queue LOCK command |
@@ -196,6 +231,7 @@ Authorization: ******
 | POST | `/api/device/{id}/syncattendancelogs` | Queue full attendance-log sync from device |
 | POST | `/api/device/{id}/clearattendance` | Queue CLEAR ATT LOG command |
 | POST | `/api/device/{id}/clearusers` | Queue CLEAR DATA command |
+| POST | `/api/device/bulk-assign-location` | Assign many devices to one location |
 
 Approved devices that reconnect after being offline longer than the configured offline threshold are also automatically queued for a full `DATA QUERY ATTLOG` sync, unless the same sync command is already pending.
 
@@ -203,8 +239,8 @@ Approved devices that reconnect after being offline longer than the configured o
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/attendance` | Paginated attendance (`?pageNumber=1&pageSize=50&clientId=`) |
-| GET | `/api/attendance/today` | Today's punches (`?clientId=`) |
+| GET | `/api/attendance` | Paginated attendance (`?pageNumber=1&pageSize=50&clientId=&locationId=`) |
+| GET | `/api/attendance/today` | Today's punches (`?clientId=&locationId=`) |
 | GET | `/api/attendance/device/{deviceSN}` | Logs for a device (`?from=&to=`) |
 | POST | `/api/attendance/push` | Push attendance from a device via REST (no auth required) |
 

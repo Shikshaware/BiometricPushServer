@@ -28,6 +28,10 @@
                                 <label class="form-label">Password</label>
                                 <input name="password" type="password" class="form-control" required />
                             </div>
+                            <div class="mb-3">
+                                <label class="form-label">ClientId (required for owner login)</label>
+                                <input name="clientId" type="number" class="form-control" min="1" />
+                            </div>
                             <div asp-validation-summary="All" class="text-danger mb-2"></div>
                             <button type="submit" class="btn btn-primary w-100">Login</button>
                         </form>

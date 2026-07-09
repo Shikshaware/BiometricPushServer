@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Service.Interfaces;
+using BiometricPushServer.Web.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,14 +23,16 @@ namespace BiometricPushServer.Web.Controllers.Api
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 50)
         {
-            var result = await _userService.GetAllAsync(clientId, pageNumber, pageSize);
+            var scopedClientId = User.ResolveClientId(clientId);
+            var result = await _userService.GetAllAsync(scopedClientId, pageNumber, pageSize);
             return Ok(ApiResponse<object>.Ok(result));
         }
 
         [HttpGet("{userCode}")]
         public async Task<IActionResult> Get(string userCode, [FromQuery] int? clientId)
         {
-            var user = await _userService.GetByCodeAsync(userCode, clientId);
+            var scopedClientId = User.ResolveClientId(clientId);
+            var user = await _userService.GetByCodeAsync(userCode, scopedClientId);
             if (user == null) return NotFound(ApiResponse<object>.Fail("User not found", 404));
             return Ok(ApiResponse<object>.Ok(user));
         }
@@ -40,6 +43,10 @@ namespace BiometricPushServer.Web.Controllers.Api
             if (!ModelState.IsValid)
                 return BadRequest(ApiResponse<object>.Fail("Invalid payload"));
 
+            var claimClientId = User.GetClientIdClaim();
+            if (claimClientId.HasValue)
+                dto.ClientId = claimClientId;
+
             var user = await _userService.UpsertAsync(dto);
             return Ok(ApiResponse<object>.Ok(user));
         }
@@ -47,7 +54,8 @@ namespace BiometricPushServer.Web.Controllers.Api
         [HttpDelete("{userCode}")]
         public async Task<IActionResult> Delete(string userCode, [FromQuery] int? clientId)
         {
-            var deleted = await _userService.DeleteAsync(userCode, clientId);
+            var scopedClientId = User.ResolveClientId(clientId);
+            var deleted = await _userService.DeleteAsync(userCode, scopedClientId);
             return deleted
                 ? Ok(ApiResponse<object>.OkMessage("User deleted"))
                 : NotFound(ApiResponse<object>.Fail("User not found", 404));

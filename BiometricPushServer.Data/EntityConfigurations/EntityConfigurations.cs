@@ -20,6 +20,8 @@ namespace BiometricPushServer.Data.EntityConfigurations
 
             builder.HasIndex(x => x.SerialNumber).IsUnique();
             builder.HasIndex(x => x.ClientId);
+            builder.HasIndex(x => x.LocationId);
+            builder.HasIndex(x => new { x.ClientId, x.LocationId });
         }
     }
 
@@ -210,6 +212,21 @@ namespace BiometricPushServer.Data.EntityConfigurations
                    .HasForeignKey(x => x.CompanyId)
                    .IsRequired(false)
                    .OnDelete(DeleteBehavior.SetNull);
+        }
+    }
+
+    public class BioPortalUserConfiguration : IEntityTypeConfiguration<BioPortalUser>
+    {
+        public void Configure(EntityTypeBuilder<BioPortalUser> builder)
+        {
+            builder.HasKey(x => x.Id);
+            builder.Property(x => x.Username).IsRequired().HasMaxLength(100);
+            builder.Property(x => x.PasswordHash).HasMaxLength(500);
+            builder.Property(x => x.Role).IsRequired().HasMaxLength(30);
+            builder.Property(x => x.InviteToken).HasMaxLength(200);
+
+            builder.HasIndex(x => x.InviteToken).IsUnique();
+            builder.HasIndex(x => new { x.ClientId, x.Username }).IsUnique();
         }
     }
 

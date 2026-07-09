@@ -37,6 +37,7 @@ namespace BiometricPushServer.Data
         public DbSet<BioErrorLog> BioErrorLogs { get; set; } = null!;
         public DbSet<BioSyncHistory> BioSyncHistories { get; set; } = null!;
         public DbSet<ApiClient> ApiClients { get; set; } = null!;
+        public DbSet<BioPortalUser> BioPortalUsers { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

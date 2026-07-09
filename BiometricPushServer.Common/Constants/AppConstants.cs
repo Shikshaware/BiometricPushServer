@@ -17,8 +17,10 @@ namespace BiometricPushServer.Common.Constants
         public const string DeviceSecretHeader = "X-Device-Secret";
 
         public const string Roles_Admin = "Admin";
+        public const string Roles_Owner = "Owner";
         public const string Roles_Operator = "Operator";
         public const string Roles_Viewer = "Viewer";
+        public const string Claim_ClientId = "client_id";
     }
 
     public static class CacheKeys
