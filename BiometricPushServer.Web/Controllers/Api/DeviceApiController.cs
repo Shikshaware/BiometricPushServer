@@ -97,6 +97,7 @@ namespace BiometricPushServer.Web.Controllers.Api
         }
 
         [HttpPost("{id:int}/syncattendancelogs")]
+        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> SyncAttendanceLogs(int id)
         {
             var device = await _deviceService.GetDeviceDtoAsync(id);
