@@ -32,6 +32,7 @@ namespace BiometricPushServer.Repository.Interfaces
         IAttendanceRepository Attendance { get; }
         ICommandRepository Commands { get; }
         IGenericRepository<BioUser> Users { get; }
+        IGenericRepository<BioDeviceUserMap> DeviceUserMaps { get; }
         IGenericRepository<BioFingerprint> Fingerprints { get; }
         IGenericRepository<BioFaceTemplate> FaceTemplates { get; }
         IGenericRepository<BioPalmTemplate> PalmTemplates { get; }

@@ -35,6 +35,7 @@ namespace BiometricPushServer.Domain
         // Navigation properties
         public virtual ICollection<BioAttendanceLog> AttendanceLogs { get; set; } = new List<BioAttendanceLog>();
         public virtual ICollection<BioDeviceCommand> Commands { get; set; } = new List<BioDeviceCommand>();
+        public virtual ICollection<BioDeviceUserMap> DeviceUsers { get; set; } = new List<BioDeviceUserMap>();
         public virtual ICollection<BioDeviceStatus> StatusHistory { get; set; } = new List<BioDeviceStatus>();
         public virtual ICollection<BioHeartbeat> Heartbeats { get; set; } = new List<BioHeartbeat>();
     }

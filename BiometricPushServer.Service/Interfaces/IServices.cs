@@ -43,6 +43,10 @@ namespace BiometricPushServer.Service.Interfaces
         Task<BioUser> UpsertAsync(UserDto dto);
         Task<bool> DeleteAsync(string userCode, int? clientId = null);
         Task<PagedResult<UserDto>> GetAllAsync(int? clientId, int pageNumber, int pageSize);
+        Task<PagedResult<UserDto>> GetByDeviceAsync(int deviceId, int pageNumber, int pageSize);
+        Task AttachUserToDeviceAsync(int deviceId, int userId);
+        Task<bool> DetachUserFromDeviceAsync(int deviceId, int userId);
+        Task<bool> UserHasAnyDeviceMappingAsync(int userId);
     }
 
     public interface IDashboardService

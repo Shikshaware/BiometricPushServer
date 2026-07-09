@@ -14,6 +14,7 @@ namespace BiometricPushServer.Repository
         public IAttendanceRepository Attendance { get; }
         public ICommandRepository Commands { get; }
         public IGenericRepository<BioUser> Users { get; }
+        public IGenericRepository<BioDeviceUserMap> DeviceUserMaps { get; }
         public IGenericRepository<BioFingerprint> Fingerprints { get; }
         public IGenericRepository<BioFaceTemplate> FaceTemplates { get; }
         public IGenericRepository<BioPalmTemplate> PalmTemplates { get; }
@@ -37,6 +38,7 @@ namespace BiometricPushServer.Repository
             Attendance = new AttendanceRepository(context);
             Commands = new CommandRepository(context);
             Users = new GenericRepository<BioUser>(context);
+            DeviceUserMaps = new GenericRepository<BioDeviceUserMap>(context);
             Fingerprints = new GenericRepository<BioFingerprint>(context);
             FaceTemplates = new GenericRepository<BioFaceTemplate>(context);
             PalmTemplates = new GenericRepository<BioPalmTemplate>(context);

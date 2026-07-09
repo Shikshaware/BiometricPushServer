@@ -65,13 +65,72 @@ namespace BiometricPushServer.Service
             return true;
         }
 
-        public async Task<PagedResult<UserDto>> GetAllAsync(int? clientId, int pageNumber, int pageSize)
+        public Task<PagedResult<UserDto>> GetAllAsync(int? clientId, int pageNumber, int pageSize)
         {
             var query = _uow.Users.Query();
             if (clientId.HasValue) query = query.Where(u => u.ClientId == clientId);
 
             var total = query.Count();
-            var items = query
+            var items = ProjectUsers(query, pageNumber, pageSize);
+
+            return Task.FromResult(new PagedResult<UserDto>
+            {
+                Items = items,
+                TotalCount = total,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            });
+        }
+
+        public Task<PagedResult<UserDto>> GetByDeviceAsync(int deviceId, int pageNumber, int pageSize)
+        {
+            var query = _uow.DeviceUserMaps.Query()
+                .Where(m => m.DeviceId == deviceId)
+                .Join(_uow.Users.Query(), m => m.UserId, u => u.Id, (_, u) => u);
+
+            var total = query.Count();
+            var items = ProjectUsers(query, pageNumber, pageSize);
+
+            return Task.FromResult(new PagedResult<UserDto>
+            {
+                Items = items,
+                TotalCount = total,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            });
+        }
+
+        public async Task AttachUserToDeviceAsync(int deviceId, int userId)
+        {
+            var alreadyMapped = await _uow.DeviceUserMaps.AnyAsync(
+                m => m.DeviceId == deviceId && m.UserId == userId);
+            if (alreadyMapped) return;
+
+            await _uow.DeviceUserMaps.AddAsync(new BioDeviceUserMap
+            {
+                DeviceId = deviceId,
+                UserId = userId,
+                CreatedOn = DateTime.UtcNow
+            });
+            await _uow.SaveChangesAsync();
+        }
+
+        public async Task<bool> DetachUserFromDeviceAsync(int deviceId, int userId)
+        {
+            var map = await _uow.DeviceUserMaps.FirstOrDefaultAsync(
+                m => m.DeviceId == deviceId && m.UserId == userId);
+            if (map == null) return false;
+
+            _uow.DeviceUserMaps.Remove(map);
+            await _uow.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> UserHasAnyDeviceMappingAsync(int userId) =>
+            await _uow.DeviceUserMaps.AnyAsync(m => m.UserId == userId);
+
+        private static List<UserDto> ProjectUsers(IQueryable<BioUser> query, int pageNumber, int pageSize) =>
+            query
                 .OrderBy(u => u.Name)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -86,15 +145,6 @@ namespace BiometricPushServer.Service
                     DepartmentId = u.DepartmentId
                 })
                 .ToList();
-
-            return new PagedResult<UserDto>
-            {
-                Items = items,
-                TotalCount = total,
-                PageNumber = pageNumber,
-                PageSize = pageSize
-            };
-        }
     }
 
     public class DashboardService : IDashboardService

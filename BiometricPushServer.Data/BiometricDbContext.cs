@@ -19,6 +19,7 @@ namespace BiometricPushServer.Data
 
         // Users & biometric templates
         public DbSet<BioUser> BioUsers { get; set; } = null!;
+        public DbSet<BioDeviceUserMap> BioDeviceUserMaps { get; set; } = null!;
         public DbSet<BioFingerprint> BioFingerprints { get; set; } = null!;
         public DbSet<BioFaceTemplate> BioFaceTemplates { get; set; } = null!;
         public DbSet<BioPalmTemplate> BioPalmTemplates { get; set; } = null!;
@@ -40,6 +41,26 @@ namespace BiometricPushServer.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<BioDeviceUserMap>(entity =>
+            {
+                entity.HasKey(m => m.Id);
+
+                entity.HasOne(m => m.Device)
+                    .WithMany(d => d.DeviceUsers)
+                    .HasForeignKey(m => m.DeviceId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(m => m.User)
+                    .WithMany(u => u.DeviceUsers)
+                    .HasForeignKey(m => m.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(m => new { m.DeviceId, m.UserId })
+                    .IsUnique();
+                entity.HasIndex(m => m.DeviceId);
+                entity.HasIndex(m => m.UserId);
+            });
 
             // Apply all entity configurations from this assembly
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(BiometricDbContext).Assembly);
