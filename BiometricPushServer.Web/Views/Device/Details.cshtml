@@ -101,6 +101,13 @@
                     </button>
                 </form>
 
+                <form method="post" asp-action="SyncAttendanceLogs" asp-route-id="@Model.Id">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-database-down"></i> Sync Full Attendance Logs
+                    </button>
+                </form>
+
                 <form method="post" asp-action="ClearAttendance" asp-route-id="@Model.Id">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-outline-danger w-100"

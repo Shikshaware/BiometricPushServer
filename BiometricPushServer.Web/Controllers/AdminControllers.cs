@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using BiometricPushServer.Common.Constants;
 using BiometricPushServer.Service.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -94,6 +95,16 @@ namespace BiometricPushServer.Web.Controllers
             var device = await _deviceService.GetDeviceDtoAsync(id);
             if (device == null) return NotFound();
             await _commandService.EnqueueAsync(device.SerialNumber, "SYNCTIME");
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SyncAttendanceLogs(int id)
+        {
+            var device = await _deviceService.GetDeviceDtoAsync(id);
+            if (device == null) return NotFound();
+            await _commandService.EnqueueAsync(device.SerialNumber, AppConstants.CommandSyncAttendanceLogs);
             return RedirectToAction(nameof(Details), new { id });
         }
 

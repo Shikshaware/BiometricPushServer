@@ -193,6 +193,7 @@ Authorization: ******
 | POST | `/api/device/{id}/unlock` | Unlock device + queue UNLOCK command |
 | POST | `/api/device/{id}/restart` | Queue RESTART command |
 | POST | `/api/device/{id}/synctime` | Queue SYNCTIME command |
+| POST | `/api/device/{id}/syncattendancelogs` | Queue full attendance-log sync from device |
 | POST | `/api/device/{id}/clearattendance` | Queue CLEAR ATT LOG command |
 | POST | `/api/device/{id}/clearusers` | Queue CLEAR DATA command |
 
@@ -263,7 +264,7 @@ Content-Type: application/json
 }
 ```
 
-Supported `commandType` values: `LOCK`, `UNLOCK`, `RESTART`, `SYNCTIME`, `CLEAR ATT LOG`, `CLEAR DATA`.
+Supported `commandType` values: `LOCK`, `UNLOCK`, `RESTART`, `SYNCTIME`, `DATA QUERY ATTLOG`, `CLEAR ATT LOG`, `CLEAR DATA`.
 
 ### 4.6 Dashboard stats
 

@@ -157,6 +157,10 @@ curl -s -X POST http://localhost:5000/api/device/1/unlock \
 curl -s -X POST http://localhost:5000/api/device/1/synctime \
   -H "Authorization: ******"
 
+# Sync full attendance logs from device
+curl -s -X POST http://localhost:5000/api/device/1/syncattendancelogs \
+  -H "Authorization: ******"
+
 # Clear attendance log
 curl -s -X POST http://localhost:5000/api/device/1/clearattendance \
   -H "Authorization: ******"

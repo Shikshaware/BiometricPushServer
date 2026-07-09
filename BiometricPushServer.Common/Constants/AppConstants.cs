@@ -11,6 +11,8 @@ namespace BiometricPushServer.Common.Constants
         public const int OfflineThresholdMinutes = 2;
         public const int DuplicateWindowSeconds = 60;
 
+        public const string CommandSyncAttendanceLogs = "DATA QUERY ATTLOG";
+
         public const string ApiKeyHeader = "X-Api-Key";
         public const string DeviceSecretHeader = "X-Device-Secret";
 
