@@ -22,9 +22,18 @@
                         <option value="">Select client...</option>
                         @foreach (var client in clients)
                         {
-                            <option value="@client.ClientId" selected="@(selectedClientId == client.ClientId ? "selected" : null)">
-                                @client.DisplayName (@client.ClientId) — @client.TimeZoneId
-                            </option>
+                            @if (selectedClientId == client.ClientId)
+                            {
+                                <option value="@client.ClientId" selected>
+                                    @client.DisplayName (@client.ClientId) — @client.TimeZoneId
+                                </option>
+                            }
+                            else
+                            {
+                                <option value="@client.ClientId">
+                                    @client.DisplayName (@client.ClientId) — @client.TimeZoneId
+                                </option>
+                            }
                         }
                     </select>
                 </div>

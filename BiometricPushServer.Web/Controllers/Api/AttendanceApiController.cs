@@ -162,7 +162,18 @@ namespace BiometricPushServer.Web.Controllers.Api
 
             using var stream = new System.IO.MemoryStream();
             workbook.SaveAs(stream);
-            var fileName = $"attendance_{report.Period}_{report.ClientId}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+            var fileTimestamp = DateTime.UtcNow;
+            try
+            {
+                var tz = TimeZoneInfo.FindSystemTimeZoneById(report.TimeZoneId);
+                fileTimestamp = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+            }
+            catch
+            {
+                // keep UTC fallback
+            }
+
+            var fileName = $"attendance_{report.Period}_{report.ClientId}_{fileTimestamp:yyyyMMdd_HHmmss}.xlsx";
             return File(
                 stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
