@@ -46,7 +46,7 @@
                 @Html.AntiForgeryToken()
                 <div class="col-md-3">
                     <label class="form-label">Client ID</label>
-                    <input id="inviteClientId" name="clientId" type="number" class="form-control" min="1" value="@(selectedClientId?.ToString() ?? string.Empty)" aria-describedby="inviteClientIdHelp" @(selectedClientId.HasValue ? "readonly=\"readonly\"" : "") required />
+                    <input id="inviteClientId" name="clientId" type="number" class="form-control" min="1" value="@(selectedClientId?.ToString() ?? string.Empty)" aria-describedby="inviteClientIdHelp" readonly="@(selectedClientId.HasValue ? "readonly" : null)" required />
                     <small id="inviteClientIdHelp" class="text-muted">When a client is selected from provider dashboard, Client ID is locked here.</small>
                 </div>
                 <div class="col-md-3">
