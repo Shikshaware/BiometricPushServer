@@ -119,9 +119,9 @@ builder.Services.AddAuthentication(opts =>
 {
     opts.ForwardDefaultSelector = ctx =>
     {
-        string? auth = ctx.Request.Headers[HeaderNames.Authorization];
-        if (!string.IsNullOrEmpty(auth) &&
-            auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        string? authHeader = ctx.Request.Headers[HeaderNames.Authorization];
+        if (!string.IsNullOrEmpty(authHeader) &&
+            authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
             return JwtBearerDefaults.AuthenticationScheme;
         }
