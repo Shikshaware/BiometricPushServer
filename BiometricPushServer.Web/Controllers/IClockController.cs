@@ -68,12 +68,21 @@ namespace BiometricPushServer.Web.Controllers
             var secretCheck = CheckDeviceSecret(existingDevice);
             if (secretCheck != null) return secretCheck;
 
-            var device = await _deviceService.RegisterOrUpdateAsync(new DeviceRegistrationDto
+            BioDevice? device;
+            if (existingDevice == null)
             {
-                SerialNumber = SN,
-                DeviceName = SN,
-                IpAddress = ip
-            }, ip);
+                device = await _deviceService.RegisterOrUpdateAsync(new DeviceRegistrationDto
+                {
+                    SerialNumber = SN,
+                    DeviceName = SN,
+                    IpAddress = ip
+                }, ip);
+            }
+            else
+            {
+                await _deviceService.UpdateConnectionAsync(SN, ip);
+                device = existingDevice;
+            }
 
             await QueueAutomaticAttendanceSyncOnReconnectAsync(device);
             await _deviceService.UpdateHeartbeatAsync(SN, ip, Request.QueryString.Value ?? string.Empty);

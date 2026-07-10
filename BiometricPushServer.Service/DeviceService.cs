@@ -55,6 +55,17 @@ namespace BiometricPushServer.Service
             return device;
         }
 
+        public async Task UpdateConnectionAsync(string sn, string ipAddress)
+        {
+            var device = await _uow.Devices.GetBySerialNumberAsync(sn);
+            if (device == null) return;
+            device.IpAddress = ipAddress;
+            device.LastConnectedOn = DateTime.UtcNow;
+            device.UpdatedOn = DateTime.UtcNow;
+            _uow.Devices.Update(device);
+            await _uow.SaveChangesAsync();
+        }
+
         public async Task<IEnumerable<DeviceDto>> GetAllDevicesAsync(int? clientId = null, int? locationId = null)
         {
             var devices = await _uow.Devices.FindAsync(d =>
