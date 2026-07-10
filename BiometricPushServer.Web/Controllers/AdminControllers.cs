@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using BiometricPushServer.Common.Constants;
 using BiometricPushServer.Common.DTOs;
 using BiometricPushServer.Domain;
@@ -62,11 +63,11 @@ namespace BiometricPushServer.Web.Controllers
                 .Where(u => u.ClientId.HasValue)
                 .Select(u => u.ClientId!.Value);
 
-            var clientIds = deviceClientIds
+            var clientIds = await deviceClientIds
                 .Union(ownerClientIds)
                 .Distinct()
                 .OrderBy(id => id)
-                .ToList();
+                .ToListAsync();
 
             if (clientIds.Count == 0)
             {

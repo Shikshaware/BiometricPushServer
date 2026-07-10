@@ -187,4 +187,27 @@ namespace BiometricPushServer.Common.DTOs
         public int PageSize { get; set; }
         public int TotalPages => PageSize > 0 ? (int)Math.Ceiling((double)TotalCount / PageSize) : 0;
     }
+
+    public class LoginRequest
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public int? ClientId { get; set; }
+    }
+
+    public class OwnerInviteRequest
+    {
+        public int ClientId { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string? TimeZoneId { get; set; }
+    }
+
+    public class OwnerRegistrationRequest
+    {
+        public int ClientId { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string InviteToken { get; set; } = string.Empty;
+        public string? TimeZoneId { get; set; }
+    }
 }
