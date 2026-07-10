@@ -244,6 +244,156 @@ namespace BiometricPushServer.Web.Controllers
     }
 
     [Authorize]
+    public class DepartmentController : Controller
+    {
+        private readonly IDepartmentService _departmentService;
+
+        public DepartmentController(IDepartmentService departmentService)
+            => _departmentService = departmentService;
+
+        public async Task<IActionResult> Index([FromQuery] int? clientId, [FromQuery] int? editId)
+        {
+            var scopedClientId = User.ResolveClientId(clientId);
+            var departments = await _departmentService.GetAllAsync(scopedClientId);
+            ViewBag.EditId = editId;
+            ViewBag.EditItem = editId.HasValue
+                ? await _departmentService.GetByIdAsync(editId.Value)
+                : null;
+            return View(departments);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(DepartmentDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Invalid data.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var claimClientId = User.GetClientIdClaim();
+            if (claimClientId.HasValue)
+                dto.ClientId = claimClientId;
+
+            await _departmentService.CreateAsync(dto);
+            TempData["Success"] = "Department created.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, DepartmentDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Invalid data.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var existing = await _departmentService.GetByIdAsync(id);
+            if (existing == null) return NotFound();
+            if (!User.CanAccessClient(existing.ClientId)) return Forbid();
+
+            var claimClientId = User.GetClientIdClaim();
+            if (claimClientId.HasValue)
+                dto.ClientId = claimClientId;
+
+            await _departmentService.UpdateAsync(id, dto);
+            TempData["Success"] = "Department updated.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var existing = await _departmentService.GetByIdAsync(id);
+            if (existing == null) return NotFound();
+            if (!User.CanAccessClient(existing.ClientId)) return Forbid();
+
+            await _departmentService.DeleteAsync(id);
+            TempData["Success"] = "Department deleted.";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    [Authorize]
+    public class LocationController : Controller
+    {
+        private readonly ILocationService _locationService;
+
+        public LocationController(ILocationService locationService)
+            => _locationService = locationService;
+
+        public async Task<IActionResult> Index([FromQuery] int? clientId, [FromQuery] int? editId)
+        {
+            var scopedClientId = User.ResolveClientId(clientId);
+            var locations = await _locationService.GetAllAsync(scopedClientId);
+            ViewBag.EditId = editId;
+            ViewBag.EditItem = editId.HasValue
+                ? await _locationService.GetByIdAsync(editId.Value)
+                : null;
+            return View(locations);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(LocationDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Invalid data.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var claimClientId = User.GetClientIdClaim();
+            if (claimClientId.HasValue)
+                dto.ClientId = claimClientId;
+
+            await _locationService.CreateAsync(dto);
+            TempData["Success"] = "Location created.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, LocationDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Invalid data.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var existing = await _locationService.GetByIdAsync(id);
+            if (existing == null) return NotFound();
+            if (!User.CanAccessClient(existing.ClientId)) return Forbid();
+
+            var claimClientId = User.GetClientIdClaim();
+            if (claimClientId.HasValue)
+                dto.ClientId = claimClientId;
+
+            await _locationService.UpdateAsync(id, dto);
+            TempData["Success"] = "Location updated.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var existing = await _locationService.GetByIdAsync(id);
+            if (existing == null) return NotFound();
+            if (!User.CanAccessClient(existing.ClientId)) return Forbid();
+
+            await _locationService.DeleteAsync(id);
+            TempData["Success"] = "Location deleted.";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    [Authorize]
     public class AttendanceController : Controller
     {
         private readonly IAttendanceService _attendanceService;
