@@ -84,6 +84,8 @@ namespace BiometricPushServer.Service
             int? clientId, int pageNumber, int pageSize,
             DateTime? from = null, DateTime? to = null, int? locationId = null)
         {
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = Math.Max(1, pageSize);
             var query = _uow.Attendance.Query();
             if (clientId.HasValue) query = query.Where(a => a.ClientId == clientId);
             if (from.HasValue) query = query.Where(a => a.PunchTime >= from.Value);

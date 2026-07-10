@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BiometricPushServer.Common.Constants;
 using BiometricPushServer.Data;
 using BiometricPushServer.Domain;
 using BiometricPushServer.Repository.Interfaces;
@@ -25,7 +26,7 @@ namespace BiometricPushServer.Repository
 
         public async Task<IEnumerable<BioDevice>> GetOnlineDevicesAsync(int? clientId = null)
         {
-            var threshold = DateTime.UtcNow.AddMinutes(-2);
+            var threshold = DateTime.UtcNow.AddMinutes(-AppConstants.OfflineThresholdMinutes);
             var query = _dbSet.Where(d => d.IsActive && d.LastHeartbeatOn >= threshold);
             if (clientId.HasValue) query = query.Where(d => d.ClientId == clientId);
             return await query.ToListAsync();
@@ -38,7 +39,7 @@ namespace BiometricPushServer.Repository
 
         public async Task<IEnumerable<BioAttendanceLog>> GetTodayLogsAsync(int? clientId = null)
         {
-            var today = DateTime.Today;
+            var today = DateTime.UtcNow.Date;
             var query = _dbSet.Where(a => a.PunchTime >= today);
             if (clientId.HasValue) query = query.Where(a => a.ClientId == clientId);
             return await query.OrderByDescending(a => a.PunchTime).ToListAsync();
