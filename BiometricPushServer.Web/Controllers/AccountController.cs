@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
-
 namespace BiometricPushServer.Web.Controllers
 {
     public class AccountController : Controller
@@ -244,28 +243,5 @@ namespace BiometricPushServer.Web.Controllers
                 return fallback;
             }
         }
-    }
-
-    public class LoginRequest
-    {
-        public string Username { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public int? ClientId { get; set; }
-    }
-
-    public class OwnerInviteRequest
-    {
-        public int ClientId { get; set; }
-        public string Username { get; set; } = string.Empty;
-        public string? TimeZoneId { get; set; }
-    }
-
-    public class OwnerRegistrationRequest
-    {
-        public int ClientId { get; set; }
-        public string Username { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public string InviteToken { get; set; } = string.Empty;
-        public string? TimeZoneId { get; set; }
     }
 }
