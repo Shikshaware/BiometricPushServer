@@ -22,6 +22,9 @@ namespace BiometricPushServer.Service
             IEnumerable<AttendanceRecordDto> records,
             int? clientId)
         {
+            if (records == null)
+                return (0, 0);
+
             var device = await _uow.Devices.GetBySerialNumberAsync(deviceSN);
             if (device == null || !device.IsApproved)
                 return (0, 0);

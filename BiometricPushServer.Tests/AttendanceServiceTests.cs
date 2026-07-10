@@ -138,6 +138,27 @@ namespace BiometricPushServer.Tests
         }
 
         [Fact]
+        public async Task ProcessPushAsync_NullRecords_ReturnsZeroWithoutSaving()
+        {
+            var device = new BioDevice
+            {
+                Id = 5,
+                SerialNumber = "SN005",
+                ClientId = 2,
+                IsApproved = true,
+                IsActive = true
+            };
+            _deviceRepoMock.Setup(r => r.GetBySerialNumberAsync("SN005"))
+                .ReturnsAsync(device);
+
+            var (saved, duplicates) = await _sut.ProcessPushAsync("SN005", records: null!, clientId: null);
+
+            Assert.Equal(0, saved);
+            Assert.Equal(0, duplicates);
+            _attendanceRepoMock.Verify(r => r.AddAsync(It.IsAny<BioAttendanceLog>()), Times.Never);
+        }
+
+        [Fact]
         public async Task ProcessPushAsync_DuplicateRecord_CountedAsDuplicate()
         {
             // Arrange
