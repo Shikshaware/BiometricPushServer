@@ -54,16 +54,18 @@
             <form id="ownerInviteForm" class="row g-2 align-items-end">
                 @Html.AntiForgeryToken()
                 <div class="col-md-3">
-                    <label class="form-label">ClientId</label>
-                    <input id="inviteClientId" name="clientId" type="number" class="form-control" min="1" value="@(selectedClientId?.ToString() ?? string.Empty)" @(selectedClientId.HasValue ? "readonly" : "") required />
+                    <label class="form-label">Client ID</label>
+                    <input id="inviteClientId" name="clientId" type="number" class="form-control" min="1" value="@(selectedClientId?.ToString() ?? string.Empty)" aria-describedby="inviteClientIdHelp" @(selectedClientId.HasValue ? "readonly=\"readonly\"" : "") required />
+                    <small id="inviteClientIdHelp" class="text-muted">When a client is selected from provider dashboard, Client ID is locked here.</small>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Owner Username</label>
                     <input id="inviteUsername" name="username" type="text" class="form-control" required />
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">TimeZoneId</label>
-                    <input id="inviteTimeZoneId" name="timeZoneId" type="text" class="form-control" value="@clientTimeZoneId" />
+                    <label class="form-label">Time Zone ID</label>
+                    <input id="inviteTimeZoneId" name="timeZoneId" type="text" class="form-control" value="@clientTimeZoneId" placeholder="UTC" aria-describedby="inviteTimeZoneHelp" />
+                    <small id="inviteTimeZoneHelp" class="text-muted">Use a valid IANA/OS timezone identifier.</small>
                 </div>
                 <div class="col-md-3">
                     <button id="createInviteBtn" type="submit" class="btn btn-primary w-100">
@@ -71,7 +73,13 @@
                     </button>
                 </div>
             </form>
-            <div id="ownerInviteResult" class="small mt-3 text-muted">Fill the details and generate an owner invite token.</div>
+            <div id="ownerInviteResult" class="small mt-3 text-muted" role="status" aria-live="polite">Complete the form and generate an owner invite token.</div>
+            <div id="ownerInviteActions" class="mt-2 d-none">
+                <button id="toggleInviteTokenBtn" type="button" class="btn btn-sm btn-outline-secondary me-2">Show Token</button>
+                <button id="copyInviteTokenBtn" type="button" class="btn btn-sm btn-outline-primary">Copy Token</button>
+            </div>
+            <div id="copyInviteStatus" class="visually-hidden" aria-live="polite"></div>
+            <div class="small text-warning mt-1">Keep invite tokens secure and share only with the intended owner.</div>
         </div>
     </div>
 
@@ -256,10 +264,67 @@
     }
 
     const ownerInviteForm = document.getElementById("ownerInviteForm");
+    let latestInviteToken = "";
+    let latestInviteExpiresOn = "";
+    let isInviteTokenVisible = false;
+
+    function maskToken(token) {
+        if (!token) return "";
+        return "Token hidden for security";
+    }
+
+    function formatUtcExpiry(value) {
+        if (!value) return "";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return "Invalid date";
+        return parsed.toISOString();
+    }
+
+    function renderInviteResult(resultElement) {
+        const tokenToShow = isInviteTokenVisible ? latestInviteToken : maskToken(latestInviteToken);
+        resultElement.textContent = `Invite token: ${tokenToShow} | Expires On (UTC): ${formatUtcExpiry(latestInviteExpiresOn)}`;
+    }
+
     if (ownerInviteForm) {
+        const result = document.getElementById("ownerInviteResult");
+        const actions = document.getElementById("ownerInviteActions");
+        const toggleBtn = document.getElementById("toggleInviteTokenBtn");
+        const copyBtn = document.getElementById("copyInviteTokenBtn");
+        const copyStatus = document.getElementById("copyInviteStatus");
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener("click", function () {
+                if (!latestInviteToken) return;
+                isInviteTokenVisible = !isInviteTokenVisible;
+                toggleBtn.textContent = isInviteTokenVisible ? "Hide Token" : "Show Token";
+                renderInviteResult(result);
+            });
+        }
+
+        if (copyBtn) {
+            copyBtn.addEventListener("click", async function () {
+                if (!latestInviteToken) return;
+                if (!navigator.clipboard) {
+                    copyBtn.textContent = "Copy not supported";
+                    if (copyStatus) copyStatus.textContent = "Copy is not supported in this browser.";
+                    setTimeout(() => copyBtn.textContent = "Copy Token", 1500);
+                    return;
+                }
+                try {
+                    await navigator.clipboard.writeText(latestInviteToken);
+                    copyBtn.textContent = "Copied";
+                    if (copyStatus) copyStatus.textContent = "Token copied to clipboard.";
+                    setTimeout(() => copyBtn.textContent = "Copy Token", 1500);
+                } catch {
+                    copyBtn.textContent = "Copy failed";
+                    if (copyStatus) copyStatus.textContent = "Copy failed.";
+                    setTimeout(() => copyBtn.textContent = "Copy Token", 1500);
+                }
+            });
+        }
+
         ownerInviteForm.addEventListener("submit", async function (event) {
             event.preventDefault();
-            const result = document.getElementById("ownerInviteResult");
             const createBtn = document.getElementById("createInviteBtn");
             const tokenInput = ownerInviteForm.querySelector('input[name="__RequestVerificationToken"]');
             const clientId = document.getElementById("inviteClientId").value;
@@ -268,13 +333,18 @@
 
             if (!clientId) {
                 result.className = "small mt-3 text-danger";
-                result.textContent = "ClientId is required.";
+                result.textContent = "Client ID is required.";
                 return;
             }
 
             createBtn.disabled = true;
             result.className = "small mt-3 text-muted";
             result.textContent = "Generating invite token...";
+            if (actions) actions.classList.add("d-none");
+            if (toggleBtn) toggleBtn.textContent = "Show Token";
+            latestInviteToken = "";
+            latestInviteExpiresOn = "";
+            isInviteTokenVisible = false;
 
             try {
                 const response = await fetch("/api/auth/create-owner-invite", {
@@ -293,16 +363,30 @@
                 const payload = await response.json();
                 if (!response.ok || !payload.success) {
                     result.className = "small mt-3 text-danger";
-                    result.textContent = payload.message || "Failed to create owner invite.";
+                    if (response.status === 400) {
+                        result.textContent = payload.message || "Invalid invite data. Please check all fields.";
+                    } else if (response.status === 401 || response.status === 403) {
+                        result.textContent = "You are not authorized to create owner invites.";
+                    } else {
+                        result.textContent = payload.message || "Failed to create owner invite due to a server error.";
+                    }
                     return;
                 }
 
-                result.className = "small mt-3 text-success";
                 const data = payload.data || {};
-                result.textContent = `Invite token: ${data.token || ""} | ExpiresOn (UTC): ${data.expiresOn || ""}`;
-            } catch {
+                latestInviteToken = data.token || "";
+                latestInviteExpiresOn = data.expiresOn || "";
+                result.className = "small mt-3 text-success";
+                renderInviteResult(result);
+                if (actions && latestInviteToken) actions.classList.remove("d-none");
+            } catch (error) {
+                console.error("Owner invite creation failed", error?.message || "Unknown error");
                 result.className = "small mt-3 text-danger";
-                result.textContent = "Failed to create owner invite.";
+                if (error instanceof TypeError) {
+                    result.textContent = "Network error while creating invite. Please check your connection and try again.";
+                } else {
+                    result.textContent = `Unexpected error while creating invite: ${error?.message || "Unknown error"}`;
+                }
             } finally {
                 createBtn.disabled = false;
             }
