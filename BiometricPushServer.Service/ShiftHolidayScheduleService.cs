@@ -84,8 +84,8 @@ namespace BiometricPushServer.Service
             Id = s.Id,
             ClientId = s.ClientId,
             Name = s.Name,
-            StartTime = s.StartTime.ToString(@"HH\:mm"),
-            EndTime = s.EndTime.ToString(@"HH\:mm"),
+            StartTime = s.StartTime.ToString(@"hh\:mm"),
+            EndTime = s.EndTime.ToString(@"hh\:mm"),
             GracePeriodMinutes = s.GracePeriodMinutes,
             IsActive = s.IsActive
         };
