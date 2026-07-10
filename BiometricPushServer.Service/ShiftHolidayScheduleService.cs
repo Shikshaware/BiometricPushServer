@@ -73,8 +73,8 @@ namespace BiometricPushServer.Service
 
         private static TimeSpan ParseTime(string value)
         {
-            if (TimeSpan.TryParseExact(value, @"hh\:mm", null, out var ts)) return ts;
-            if (TimeSpan.TryParseExact(value, @"h\:mm", null, out ts)) return ts;
+            if (TimeSpan.TryParseExact(value, @"HH\:mm", null, out var ts)) return ts;
+            if (TimeSpan.TryParseExact(value, @"H\:mm", null, out ts)) return ts;
             if (TimeSpan.TryParse(value, out ts)) return ts;
             return TimeSpan.Zero;
         }
@@ -174,7 +174,7 @@ namespace BiometricPushServer.Service
                 (clientId == null || s.ClientId == clientId) &&
                 (userId == null || s.UserId == userId));
 
-            var shiftIds = schedules.Select(s => s.ShiftId).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+            var shiftIds = schedules.Where(s => s.ShiftId.HasValue).Select(s => s.ShiftId!.Value).Distinct().ToList();
             var shifts = shiftIds.Count > 0
                 ? (await _uow.Shifts.FindAsync(s => shiftIds.Contains(s.Id))).ToDictionary(s => s.Id, s => s.Name)
                 : new Dictionary<int, string>();
