@@ -294,4 +294,48 @@ namespace BiometricPushServer.Data.EntityConfigurations
             builder.HasIndex(x => x.TransactionTime);
         }
     }
+
+    public class BioShiftConfiguration : IEntityTypeConfiguration<BioShift>
+    {
+        public void Configure(EntityTypeBuilder<BioShift> builder)
+        {
+            builder.HasKey(x => x.Id);
+            builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            builder.HasIndex(x => x.ClientId);
+        }
+    }
+
+    public class BioHolidayConfiguration : IEntityTypeConfiguration<BioHoliday>
+    {
+        public void Configure(EntityTypeBuilder<BioHoliday> builder)
+        {
+            builder.HasKey(x => x.Id);
+            builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            builder.HasIndex(x => x.ClientId);
+            builder.HasIndex(x => x.HolidayDate);
+        }
+    }
+
+    public class BioEmployeeScheduleConfiguration : IEntityTypeConfiguration<BioEmployeeSchedule>
+    {
+        public void Configure(EntityTypeBuilder<BioEmployeeSchedule> builder)
+        {
+            builder.HasKey(x => x.Id);
+
+            builder.HasOne(x => x.User)
+                   .WithMany()
+                   .HasForeignKey(x => x.UserId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(x => x.Shift)
+                   .WithMany()
+                   .HasForeignKey(x => x.ShiftId)
+                   .IsRequired(false)
+                   .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasIndex(x => x.UserId);
+            builder.HasIndex(x => x.ClientId);
+            builder.HasIndex(x => new { x.UserId, x.IsActive, x.EffectiveFrom });
+        }
+    }
 }

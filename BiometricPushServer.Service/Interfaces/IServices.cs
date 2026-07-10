@@ -74,4 +74,32 @@ namespace BiometricPushServer.Service.Interfaces
         Task<LocationDto?> UpdateAsync(int id, LocationDto dto);
         Task<bool> DeleteAsync(int id);
     }
+
+    public interface IShiftService
+    {
+        Task<IEnumerable<ShiftDto>> GetAllAsync(int? clientId = null);
+        Task<ShiftDto?> GetByIdAsync(int id);
+        Task<ShiftDto> CreateAsync(ShiftDto dto);
+        Task<ShiftDto?> UpdateAsync(int id, ShiftDto dto);
+        Task<bool> DeleteAsync(int id);
+    }
+
+    public interface IHolidayService
+    {
+        Task<IEnumerable<HolidayDto>> GetAllAsync(int? clientId = null, int? year = null);
+        Task<HolidayDto?> GetByIdAsync(int id);
+        Task<HolidayDto> CreateAsync(HolidayDto dto);
+        Task<HolidayDto?> UpdateAsync(int id, HolidayDto dto);
+        Task<bool> DeleteAsync(int id);
+    }
+
+    public interface IScheduleService
+    {
+        Task<IEnumerable<EmployeeScheduleDto>> GetAllAsync(int? clientId = null, int? userId = null);
+        Task<EmployeeScheduleDto?> GetByIdAsync(int id);
+        Task<EmployeeScheduleDto> CreateAsync(EmployeeScheduleDto dto);
+        Task<EmployeeScheduleDto?> UpdateAsync(int id, EmployeeScheduleDto dto);
+        Task<bool> DeleteAsync(int id);
+        Task<EmployeeScheduleDto?> GetActiveForUserAsync(int userId, System.DateTime? date = null);
+    }
 }

@@ -86,6 +86,9 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<ILocationService, LocationService>();
+builder.Services.AddScoped<IShiftService, ShiftService>();
+builder.Services.AddScoped<IHolidayService, HolidayService>();
+builder.Services.AddScoped<IScheduleService, ScheduleService>();
 
 // ── MVC + Razor Views ─────────────────────────────────────────────────────────
 // AutoValidateAntiforgeryToken applies CSRF validation to all unsafe-verb MVC actions globally;
