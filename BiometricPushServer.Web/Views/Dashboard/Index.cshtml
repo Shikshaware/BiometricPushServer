@@ -46,6 +46,35 @@
         </div>
     </div>
 
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-person-plus"></i> Create Owner Invite
+        </div>
+        <div class="card-body">
+            <form id="ownerInviteForm" class="row g-2 align-items-end">
+                @Html.AntiForgeryToken()
+                <div class="col-md-3">
+                    <label class="form-label">ClientId</label>
+                    <input id="inviteClientId" name="clientId" type="number" class="form-control" min="1" value="@(selectedClientId?.ToString() ?? string.Empty)" @(selectedClientId.HasValue ? "readonly" : "") required />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Owner Username</label>
+                    <input id="inviteUsername" name="username" type="text" class="form-control" required />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">TimeZoneId</label>
+                    <input id="inviteTimeZoneId" name="timeZoneId" type="text" class="form-control" value="@clientTimeZoneId" />
+                </div>
+                <div class="col-md-3">
+                    <button id="createInviteBtn" type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-envelope-paper"></i> Generate Invite Token
+                    </button>
+                </div>
+            </form>
+            <div id="ownerInviteResult" class="small mt-3 text-muted">Fill the details and generate an owner invite token.</div>
+        </div>
+    </div>
+
     @if (!selectedClientId.HasValue)
     {
         <div class="alert alert-info">Select a client to view the client-specific dashboard and attendance reports.</div>
@@ -223,6 +252,60 @@
             const period = document.getElementById("reportPeriod").value;
             const referenceDate = document.getElementById("reportDate").value;
             window.location.href = `/api/attendance/report/export?clientId=${encodeURIComponent(selectedClientId)}&period=${encodeURIComponent(period)}&referenceDate=${encodeURIComponent(referenceDate)}`;
+        });
+    }
+
+    const ownerInviteForm = document.getElementById("ownerInviteForm");
+    if (ownerInviteForm) {
+        ownerInviteForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            const result = document.getElementById("ownerInviteResult");
+            const createBtn = document.getElementById("createInviteBtn");
+            const tokenInput = ownerInviteForm.querySelector('input[name="__RequestVerificationToken"]');
+            const clientId = document.getElementById("inviteClientId").value;
+            const username = document.getElementById("inviteUsername").value;
+            const timeZoneId = document.getElementById("inviteTimeZoneId").value;
+
+            if (!clientId) {
+                result.className = "small mt-3 text-danger";
+                result.textContent = "ClientId is required.";
+                return;
+            }
+
+            createBtn.disabled = true;
+            result.className = "small mt-3 text-muted";
+            result.textContent = "Generating invite token...";
+
+            try {
+                const response = await fetch("/api/auth/create-owner-invite", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "RequestVerificationToken": tokenInput?.value || ""
+                    },
+                    body: JSON.stringify({
+                        clientId: Number(clientId),
+                        username: username,
+                        timeZoneId: timeZoneId
+                    })
+                });
+
+                const payload = await response.json();
+                if (!response.ok || !payload.success) {
+                    result.className = "small mt-3 text-danger";
+                    result.textContent = payload.message || "Failed to create owner invite.";
+                    return;
+                }
+
+                result.className = "small mt-3 text-success";
+                const data = payload.data || {};
+                result.textContent = `Invite token: ${data.token || ""} | ExpiresOn (UTC): ${data.expiresOn || ""}`;
+            } catch {
+                result.className = "small mt-3 text-danger";
+                result.textContent = "Failed to create owner invite.";
+            } finally {
+                createBtn.disabled = false;
+            }
         });
     }
 
