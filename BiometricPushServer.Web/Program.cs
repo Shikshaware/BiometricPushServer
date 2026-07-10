@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Net.Http.Headers;
 using Serilog;
 
 // ── Serilog ──────────────────────────────────────────────────────────────────
@@ -103,10 +104,29 @@ builder.Services.AddSignalR();
 var jwtSecret = config["Auth:JwtSecret"] ?? "BiometricPushServerDefaultSecretKey_ChangeInProd";
 var key = Encoding.UTF8.GetBytes(jwtSecret);
 
+// A forwarding policy scheme that automatically selects the JWT bearer scheme for
+// requests that carry an "Authorization: ******" header, and falls back to
+// cookie auth for everything else (browser-based MVC views).  This lets API
+// controllers keep a plain [Authorize] without hard-coding a scheme name.
+const string SmartScheme = "SmartScheme";
+
 builder.Services.AddAuthentication(opts =>
 {
-    opts.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    opts.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    opts.DefaultScheme = SmartScheme;
+    opts.DefaultChallengeScheme = SmartScheme;
+})
+.AddPolicyScheme(SmartScheme, SmartScheme, opts =>
+{
+    opts.ForwardDefaultSelector = ctx =>
+    {
+        string? auth = ctx.Request.Headers[HeaderNames.Authorization];
+        if (!string.IsNullOrEmpty(auth) &&
+            auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return JwtBearerDefaults.AuthenticationScheme;
+        }
+        return CookieAuthenticationDefaults.AuthenticationScheme;
+    };
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, opts =>
 {
