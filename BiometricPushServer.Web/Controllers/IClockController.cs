@@ -64,6 +64,10 @@ namespace BiometricPushServer.Web.Controllers
             _logger.LogInformation("IClock CDATA GET from SN={SN} IP={Ip}",
                 SanitizeForLog(SN), SanitizeForLog(ip));
 
+            var existingDevice = await _deviceService.GetBySerialNumberAsync(SN);
+            var secretCheck = CheckDeviceSecret(existingDevice);
+            if (secretCheck != null) return secretCheck;
+
             var device = await _deviceService.RegisterOrUpdateAsync(new DeviceRegistrationDto
             {
                 SerialNumber = SN,
@@ -107,6 +111,9 @@ namespace BiometricPushServer.Web.Controllers
                 SanitizeForLog(SN), SanitizeForLog(table), SanitizeForLog(body));
 
             var device = await _deviceService.GetBySerialNumberAsync(SN);
+
+            var secretCheck = CheckDeviceSecret(device);
+            if (secretCheck != null) return secretCheck;
 
             if (device == null)
             {
@@ -168,6 +175,8 @@ namespace BiometricPushServer.Web.Controllers
 
             var ip = GetClientIp();
             var device = await _deviceService.GetBySerialNumberAsync(SN);
+            var secretCheck = CheckDeviceSecret(device);
+            if (secretCheck != null) return secretCheck;
             await QueueAutomaticAttendanceSyncOnReconnectAsync(device);
             await _deviceService.UpdateHeartbeatAsync(SN, ip, string.Empty);
 
@@ -196,6 +205,10 @@ namespace BiometricPushServer.Web.Controllers
         {
             if (string.IsNullOrWhiteSpace(SN))
                 return BadRequest();
+
+            var device = await _deviceService.GetBySerialNumberAsync(SN);
+            var secretCheck = CheckDeviceSecret(device);
+            if (secretCheck != null) return secretCheck;
 
             var body = await ReadBodyAsync();
             _logger.LogInformation("IClock DeviceCmd SN={SN} Response={Body}",
@@ -227,6 +240,27 @@ namespace BiometricPushServer.Web.Controllers
         }
 
         // ── helpers ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns an Unauthorized result when the device has a secret configured and
+        /// the request does not supply a matching <c>X-Device-Secret</c> header.
+        /// Returns <c>null</c> when validation passes (no secret required, or correct secret).
+        /// </summary>
+        private IActionResult? CheckDeviceSecret(BioDevice? device)
+        {
+            if (device == null || string.IsNullOrEmpty(device.DeviceSecret))
+                return null;
+
+            var provided = Request.Headers[AppConstants.DeviceSecretHeader].ToString();
+            if (!string.Equals(device.DeviceSecret, provided, StringComparison.Ordinal))
+            {
+                _logger.LogWarning(
+                    "IClock device secret mismatch for SN={SN}",
+                    SanitizeForLog(device.SerialNumber));
+                return Unauthorized();
+            }
+            return null;
+        }
 
         private string GetClientIp() =>
             HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
