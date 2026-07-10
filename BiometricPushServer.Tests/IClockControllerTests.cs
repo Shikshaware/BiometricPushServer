@@ -691,6 +691,93 @@ namespace BiometricPushServer.Tests
         }
 
         [Fact]
+        public async Task CDataGet_DeviceWithSecret_CorrectHeader_AllowsRequest()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var commandSvcMock = new Mock<ICommandService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                IsApproved = true,
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+            deviceSvcMock.Setup(s => s.UpdateConnectionAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+            deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+            commandSvcMock.Setup(s => s.GetPendingAsync(It.IsAny<string>()))
+                .ReturnsAsync(new List<BioDeviceCommand>());
+
+            var controller = BuildController(deviceSvcMock, commandSvcMock: commandSvcMock);
+            var ctx = new DefaultHttpContext();
+            ctx.Request.Headers[AppConstants.DeviceSecretHeader] = "mysecret";
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.CDataGet("SN_SEC");
+
+            Assert.IsType<ContentResult>(result);
+            Assert.NotEqual(401, ((ContentResult)result).StatusCode ?? 200);
+        }
+
+        [Fact]
+        public async Task GetRequest_DeviceWithSecret_CorrectHeader_AllowsRequest()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var commandSvcMock = new Mock<ICommandService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                IsApproved = true,
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+            deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+            commandSvcMock.Setup(s => s.GetPendingAsync("SN_SEC"))
+                .ReturnsAsync(new List<BioDeviceCommand>());
+
+            var controller = BuildController(deviceSvcMock, commandSvcMock: commandSvcMock);
+            var ctx = new DefaultHttpContext();
+            ctx.Request.Headers[AppConstants.DeviceSecretHeader] = "mysecret";
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.GetRequest("SN_SEC");
+
+            Assert.IsType<ContentResult>(result);
+        }
+
+        [Fact]
+        public async Task DeviceCmd_DeviceWithSecret_CorrectHeader_AllowsRequest()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var commandSvcMock = new Mock<ICommandService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+
+            var controller = BuildController(deviceSvcMock, commandSvcMock: commandSvcMock);
+            var ctx = new DefaultHttpContext();
+            ctx.Request.Headers[AppConstants.DeviceSecretHeader] = "mysecret";
+            ctx.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes("ID=1\r\nReturn=0\r\n"));
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.DeviceCmd("SN_SEC");
+
+            Assert.IsType<ContentResult>(result);
+            Assert.Equal("OK", ((ContentResult)result).Content);
+        }
+
+        [Fact]
         public async Task CDataGet_DeviceWithSecret_WrongHeader_Returns401()
         {
             var deviceSvcMock = new Mock<IDeviceService>();
