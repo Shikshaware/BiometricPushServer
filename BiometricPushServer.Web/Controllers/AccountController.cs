@@ -185,7 +185,7 @@ namespace BiometricPushServer.Web.Controllers
 
         [HttpPost("/api/auth/create-owner-invite")]
         [Authorize(Roles = AppConstants.Roles_Admin)]
-        [ValidateAntiForgeryToken]
+        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> CreateOwnerInvite([FromBody] OwnerInviteRequest request)
         {
             if (request.ClientId <= 0 || string.IsNullOrWhiteSpace(request.Username))

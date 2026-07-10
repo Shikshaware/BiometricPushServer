@@ -22,6 +22,7 @@ namespace BiometricPushServer.Common.Constants
         public const string Roles_Operator = "Operator";
         public const string Roles_Viewer = "Viewer";
         public const string Claim_ClientId = "client_id";
+        public const string Claim_ApiClientId = "api_client_id";
     }
 
     public static class CacheKeys

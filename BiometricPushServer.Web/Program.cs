@@ -1,21 +1,25 @@
 using System.Text;
+using BiometricPushServer.Common.Constants;
 using BiometricPushServer.Data;
 using BiometricPushServer.Domain;
 using BiometricPushServer.Repository;
 using BiometricPushServer.Repository.Interfaces;
 using BiometricPushServer.Service;
 using BiometricPushServer.Service.Interfaces;
+using BiometricPushServer.Web.Authentication;
 using BiometricPushServer.Web.Filters;
 using BiometricPushServer.Web.Hubs;
 using BiometricPushServer.Web.Jobs;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.SqlServer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Net.Http.Headers;
 using Serilog;
 
 // ── Serilog ──────────────────────────────────────────────────────────────────
@@ -99,14 +103,39 @@ builder.Services.AddControllersWithViews(opts =>
 // ── SignalR ───────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();
 
-// ── Authentication (Cookie + JWT) ─────────────────────────────────────────────
+// ── Authentication (Cookie + JWT + API Key) ───────────────────────────────────
 var jwtSecret = config["Auth:JwtSecret"] ?? "BiometricPushServerDefaultSecretKey_ChangeInProd";
 var key = Encoding.UTF8.GetBytes(jwtSecret);
 
+// A forwarding policy scheme that automatically selects the right authentication
+// scheme based on the request headers, so API controllers can use a plain
+// [Authorize] without hard-coding a scheme name:
+//   • "Authorization: ******" → JWT bearer
+//   • "X-Api-Key: …"            → API key (machine-to-machine)
+//   • (none)                    → cookie (browser MVC)
+const string SmartScheme = "SmartScheme";
+
 builder.Services.AddAuthentication(opts =>
 {
-    opts.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    opts.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    opts.DefaultScheme = SmartScheme;
+    opts.DefaultChallengeScheme = SmartScheme;
+})
+.AddPolicyScheme(SmartScheme, SmartScheme, opts =>
+{
+    opts.ForwardDefaultSelector = ctx =>
+    {
+        string? authHeader = ctx.Request.Headers[HeaderNames.Authorization];
+        if (!string.IsNullOrEmpty(authHeader) &&
+            authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return JwtBearerDefaults.AuthenticationScheme;
+        }
+        if (ctx.Request.Headers.ContainsKey(AppConstants.ApiKeyHeader))
+        {
+            return ApiKeyAuthenticationHandler.SchemeName;
+        }
+        return CookieAuthenticationDefaults.AuthenticationScheme;
+    };
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, opts =>
 {
@@ -129,7 +158,9 @@ builder.Services.AddAuthentication(opts =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };
-});
+})
+.AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+    ApiKeyAuthenticationHandler.SchemeName, _ => { });
 
 builder.Services.AddAuthorization();
 

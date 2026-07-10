@@ -9,6 +9,7 @@ namespace BiometricPushServer.Service.Interfaces
     {
         Task<BioDevice?> GetBySerialNumberAsync(string sn);
         Task<BioDevice?> RegisterOrUpdateAsync(DeviceRegistrationDto dto, string ipAddress);
+        Task UpdateConnectionAsync(string sn, string ipAddress);
         Task<IEnumerable<DeviceDto>> GetAllDevicesAsync(int? clientId = null, int? locationId = null);
         Task<bool> ApproveDeviceAsync(int deviceId);
         Task<bool> SetLockedAsync(int deviceId, bool locked);

@@ -578,6 +578,275 @@ namespace BiometricPushServer.Tests
             userSvcMock.Verify(s => s.UpsertAsync(It.IsAny<UserDto>()), Times.Once);
         }
 
+        // ── Device secret validation ─────────────────────────────────────────
+
+        [Fact]
+        public async Task CDataPost_DeviceWithSecret_CorrectHeader_AllowsRequest()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var attendanceSvcMock = new Mock<IAttendanceService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                ClientId = 1,
+                IsApproved = true,
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+            deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+            attendanceSvcMock.Setup(s => s.ProcessPushAsync(It.IsAny<string>(), It.IsAny<IEnumerable<AttendanceRecordDto>>(), It.IsAny<int?>()))
+                .ReturnsAsync((0, 0));
+
+            var controller = BuildController(deviceSvcMock, attendanceSvcMock);
+            var ctx = new DefaultHttpContext();
+            ctx.Request.Headers[AppConstants.DeviceSecretHeader] = "mysecret";
+            ctx.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(string.Empty));
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.CDataPost("SN_SEC", table: "ATTLOG");
+
+            Assert.IsType<ContentResult>(result);
+            Assert.Equal("OK", ((ContentResult)result).Content);
+        }
+
+        [Fact]
+        public async Task CDataPost_DeviceWithSecret_WrongHeader_Returns401()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+
+            var controller = BuildController(deviceSvcMock);
+            var ctx = new DefaultHttpContext();
+            ctx.Request.Headers[AppConstants.DeviceSecretHeader] = "wrongsecret";
+            ctx.Request.Body = new MemoryStream(Array.Empty<byte>());
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.CDataPost("SN_SEC", table: "ATTLOG");
+
+            Assert.IsType<UnauthorizedResult>(result);
+        }
+
+        [Fact]
+        public async Task CDataPost_DeviceWithSecret_MissingHeader_Returns401()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+
+            var controller = BuildController(deviceSvcMock);
+            var ctx = new DefaultHttpContext(); // no X-Device-Secret header
+            ctx.Request.Body = new MemoryStream(Array.Empty<byte>());
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.CDataPost("SN_SEC", table: "ATTLOG");
+
+            Assert.IsType<UnauthorizedResult>(result);
+        }
+
+        [Fact]
+        public async Task CDataPost_DeviceWithNoSecretConfigured_NoHeader_AllowsRequest()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var attendanceSvcMock = new Mock<IAttendanceService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_NOSEC",
+                ClientId = 1,
+                IsApproved = true,
+                DeviceSecret = string.Empty // no secret
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_NOSEC")).ReturnsAsync(device);
+            deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+            attendanceSvcMock.Setup(s => s.ProcessPushAsync(It.IsAny<string>(), It.IsAny<IEnumerable<AttendanceRecordDto>>(), It.IsAny<int?>()))
+                .ReturnsAsync((0, 0));
+
+            var controller = BuildController(deviceSvcMock, attendanceSvcMock);
+            var ctx = new DefaultHttpContext(); // no header, no secret
+            ctx.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(string.Empty));
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.CDataPost("SN_NOSEC", table: "ATTLOG");
+
+            Assert.IsType<ContentResult>(result);
+            Assert.Equal("OK", ((ContentResult)result).Content);
+        }
+
+        [Fact]
+        public async Task CDataGet_DeviceWithSecret_CorrectHeader_AllowsRequest()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var commandSvcMock = new Mock<ICommandService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                IsApproved = true,
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+            deviceSvcMock.Setup(s => s.UpdateConnectionAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+            deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+            commandSvcMock.Setup(s => s.GetPendingAsync(It.IsAny<string>()))
+                .ReturnsAsync(new List<BioDeviceCommand>());
+
+            var controller = BuildController(deviceSvcMock, commandSvcMock: commandSvcMock);
+            var ctx = new DefaultHttpContext();
+            ctx.Request.Headers[AppConstants.DeviceSecretHeader] = "mysecret";
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.CDataGet("SN_SEC");
+
+            Assert.IsType<ContentResult>(result);
+            Assert.NotEqual(401, ((ContentResult)result).StatusCode ?? 200);
+        }
+
+        [Fact]
+        public async Task GetRequest_DeviceWithSecret_CorrectHeader_AllowsRequest()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var commandSvcMock = new Mock<ICommandService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                IsApproved = true,
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+            deviceSvcMock.Setup(s => s.UpdateHeartbeatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+            commandSvcMock.Setup(s => s.GetPendingAsync("SN_SEC"))
+                .ReturnsAsync(new List<BioDeviceCommand>());
+
+            var controller = BuildController(deviceSvcMock, commandSvcMock: commandSvcMock);
+            var ctx = new DefaultHttpContext();
+            ctx.Request.Headers[AppConstants.DeviceSecretHeader] = "mysecret";
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.GetRequest("SN_SEC");
+
+            Assert.IsType<ContentResult>(result);
+        }
+
+        [Fact]
+        public async Task DeviceCmd_DeviceWithSecret_CorrectHeader_AllowsRequest()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+            var commandSvcMock = new Mock<ICommandService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+
+            var controller = BuildController(deviceSvcMock, commandSvcMock: commandSvcMock);
+            var ctx = new DefaultHttpContext();
+            ctx.Request.Headers[AppConstants.DeviceSecretHeader] = "mysecret";
+            ctx.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes("ID=1\r\nReturn=0\r\n"));
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.DeviceCmd("SN_SEC");
+
+            Assert.IsType<ContentResult>(result);
+            Assert.Equal("OK", ((ContentResult)result).Content);
+        }
+
+        [Fact]
+        public async Task CDataGet_DeviceWithSecret_WrongHeader_Returns401()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+
+            var controller = BuildController(deviceSvcMock);
+            var ctx = new DefaultHttpContext();
+            ctx.Request.Headers[AppConstants.DeviceSecretHeader] = "bad";
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.CDataGet("SN_SEC");
+
+            Assert.IsType<UnauthorizedResult>(result);
+        }
+
+        [Fact]
+        public async Task GetRequest_DeviceWithSecret_WrongHeader_Returns401()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+
+            var controller = BuildController(deviceSvcMock);
+            var ctx = new DefaultHttpContext();
+            ctx.Request.Headers[AppConstants.DeviceSecretHeader] = "bad";
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.GetRequest("SN_SEC");
+
+            Assert.IsType<UnauthorizedResult>(result);
+        }
+
+        [Fact]
+        public async Task DeviceCmd_DeviceWithSecret_WrongHeader_Returns401()
+        {
+            var deviceSvcMock = new Mock<IDeviceService>();
+
+            var device = new BioDevice
+            {
+                Id = 1,
+                SerialNumber = "SN_SEC",
+                DeviceSecret = "mysecret"
+            };
+            deviceSvcMock.Setup(s => s.GetBySerialNumberAsync("SN_SEC")).ReturnsAsync(device);
+
+            var controller = BuildController(deviceSvcMock);
+            var ctx = new DefaultHttpContext();
+            ctx.Request.Headers[AppConstants.DeviceSecretHeader] = "bad";
+            ctx.Request.Body = new MemoryStream(Array.Empty<byte>());
+            controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+            var result = await controller.DeviceCmd("SN_SEC");
+
+            Assert.IsType<UnauthorizedResult>(result);
+        }
+
         private async Task AssertAutomaticSyncQueuedAsync(BioDevice device, Times expectedTimes)        {
             var deviceSvcMock = new Mock<IDeviceService>();
             var attendanceSvcMock = new Mock<IAttendanceService>();
