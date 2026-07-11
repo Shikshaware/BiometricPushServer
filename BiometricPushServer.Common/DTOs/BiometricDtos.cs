@@ -188,6 +188,40 @@ namespace BiometricPushServer.Common.DTOs
         public int TotalPages => PageSize > 0 ? (int)Math.Ceiling((double)TotalCount / PageSize) : 0;
     }
 
+    public class ShiftDto
+    {
+        public int Id { get; set; }
+        public int? ClientId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        /// <summary>Start time in "HH:mm" format (24-hour).</summary>
+        public string StartTime { get; set; } = string.Empty;
+        /// <summary>End time in "HH:mm" format (24-hour).</summary>
+        public string EndTime { get; set; } = string.Empty;
+        public int GracePeriodMinutes { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    public class HolidayDto
+    {
+        public int Id { get; set; }
+        public int? ClientId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public DateTime HolidayDate { get; set; }
+        public bool IsRecurring { get; set; }
+    }
+
+    public class EmployeeScheduleDto
+    {
+        public int Id { get; set; }
+        public int? ClientId { get; set; }
+        public int UserId { get; set; }
+        public int? ShiftId { get; set; }
+        public string ShiftName { get; set; } = string.Empty;
+        public DateTime EffectiveFrom { get; set; }
+        public DateTime? EffectiveTo { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
     public class LoginRequest
     {
         public string Username { get; set; } = string.Empty;

@@ -69,6 +69,8 @@ namespace BiometricPushServer.Service
 
         public async Task<PagedResult<UserDto>> GetAllAsync(int? clientId, int pageNumber, int pageSize)
         {
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = Math.Max(1, pageSize);
             var query = _uow.Users.Query();
             if (clientId.HasValue) query = query.Where(u => u.ClientId == clientId);
 
@@ -100,6 +102,8 @@ namespace BiometricPushServer.Service
 
         public async Task<PagedResult<UserDto>> GetByDeviceAsync(int deviceId, int pageNumber, int pageSize)
         {
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = Math.Max(1, pageSize);
             var query = _uow.DeviceUserMaps.Query()
                 .Where(m => m.DeviceId == deviceId)
                 .Join(_uow.Users.Query(), m => m.UserId, u => u.Id, (_, u) => u);
@@ -200,11 +204,12 @@ namespace BiometricPushServer.Service
                 .ToList();
 
             var deviceList = allDevices.ToList();
+            var onlineCount = deviceList.Count(d => d.LastHeartbeatOn >= onlineThreshold);
             return new DashboardStatsDto
             {
                 TotalDevices = deviceList.Count,
-                OnlineDevices = deviceList.Count(d => d.LastHeartbeatOn >= onlineThreshold),
-                OfflineDevices = deviceList.Count(d => d.LastHeartbeatOn < onlineThreshold),
+                OnlineDevices = onlineCount,
+                OfflineDevices = deviceList.Count - onlineCount,
                 TodayAttendance = todayLogs.Count(),
                 TotalUsers = await _uow.Users.CountAsync(u => clientId == null || u.ClientId == clientId),
                 PendingCommands = pendingCmds.Count(),
